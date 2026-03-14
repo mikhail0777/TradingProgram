@@ -15,6 +15,7 @@ class WebhookPayload(BaseModel):
     displacement_atr_mult: float = Field(0.0, description="Displacement candle size relative to ATR")
     active_session: str = Field("NONE", description="Session where setup formed e.g., NY, LON")
     htf_bias: Literal["BULLISH", "BEARISH", "NEUTRAL"] = Field("NEUTRAL", description="Higher timeframe bias")
+    liquidity_sweep: bool = Field(False, description="Whether a key liquidity level was swept before the setup")
     
     @property
     def rr(self) -> float:
@@ -27,7 +28,9 @@ class WebhookPayload(BaseModel):
             
         if risk <= 0:
             return 0.0
-        return round(reward / risk, 2)
+        # Pylance strict type checking prefers explicit float cast before round
+        val = float(reward) / float(risk)
+        return float(round(val, 2))
 
 class AIReviewResult(BaseModel):
     action: Literal["TAKE", "WAIT", "SKIP"]

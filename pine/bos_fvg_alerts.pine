@@ -44,9 +44,9 @@ float stop_price = long_setup ? low[1] : (short_setup ? high[1] : na)
 float target_price = long_setup ? entry_price + (entry_price - stop_price) * risk_reward : (short_setup ? entry_price - (stop_price - entry_price) * risk_reward : na)
 
 // --- JSON Strings ---
-webhook_json_long = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "LONG", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '"}'
+webhook_json_long = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "LONG", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '", "liquidity_sweep": true}'
 
-webhook_json_short = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "SHORT", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '"}'
+webhook_json_short = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "SHORT", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '", "liquidity_sweep": true}'
 
 // --- Fires ---
 if long_setup

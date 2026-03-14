@@ -38,7 +38,7 @@ def receive_webhook(
     Main entrypoint: Webhook -> Validation -> Strategy -> Risk -> AI Review -> Logging -> Notify
     """
     # Create an initial record structure
-    trade_data = payload.model_dump(exclude={"bos_detected", "fvg_detected", "displacement_atr_mult", "active_session", "htf_bias"})
+    trade_data = payload.model_dump(exclude={"bos_detected", "fvg_detected", "displacement_atr_mult", "active_session", "htf_bias", "liquidity_sweep"})
     
     # 1. Strategy Filters
     strategy_passed, strat_reason = evaluate_strategy(payload)
