@@ -5,6 +5,7 @@ indicator("BOS + FVG Alert Generator", overlay=true)
 length = input.int(5, "Swing Length")
 atr_length = input.int(14, "ATR Length")
 disp_mult = input.float(1.5, "Displacement ATR Multiplier")
+min_fvg_size = input.float(0.2, "Min FVG Size (ATR Mult)")
 session_str = input.session("0930-1600", "Active Session (EST)")
 htf_bias_input = input.string("BULLISH", "HTF Bias", options=["BULLISH", "BEARISH", "NEUTRAL"])
 risk_reward = input.float(2.0, "Target R:R")
@@ -25,12 +26,14 @@ if ta.lowest(low, length * 2 + 1) == low[length]
 bullBOS = close > swingHigh and close[1] <= swingHigh
 bearBOS = close < swingLow and close[1] >= swingLow
 
-// --- FVG Logic ---
-bullFVG = low > high[2] and close > open
-bearFVG = high < low[2] and close < open
-
-// --- Displacement ---
+// --- FVG Logic & Displacement ---
 atr = ta.atr(atr_length)
+
+bullFVG_gap = low - high[2]
+bearFVG_gap = low[2] - high
+bullFVG = low > high[2] and close > open and bullFVG_gap >= (atr * min_fvg_size)
+bearFVG = high < low[2] and close < open and bearFVG_gap >= (atr * min_fvg_size)
+
 bodySize = math.abs(close - open)
 displacement_mult = bodySize / atr
 
