@@ -21,8 +21,17 @@ class DBTrade(Base):
     direction = Column(String)
     entry = Column(Float)
     stop = Column(Float)
-    target = Column(Float)
+    tp1 = Column(Float)
+    tp2 = Column(Float)
     rr = Column(Float)
+    stop_distance = Column(Float)
+    
+    # Setup context
+    bos_direction = Column(String)
+    htf_trend = Column(String)
+    fvg_top = Column(Float)
+    fvg_bottom = Column(Float)
+    entry_zone = Column(String)
     
     # AI Analysis
     ai_action = Column(String)

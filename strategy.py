@@ -6,11 +6,14 @@ def evaluate_strategy(payload: WebhookPayload) -> tuple[bool, str]:
     Returns a tuple (is_valid, reason_if_invalid).
     """
     # 1. Structure Check
-    if not payload.bos_detected:
-        return False, "Rejected: Missing BOS (Break of Structure)."
+    if payload.bos_direction == "NONE":
+        return False, "Rejected: Missing structural BOS direction."
         
-    if not payload.fvg_detected:
-        return False, "Rejected: Missing FVG (Fair Value Gap)."
+    if payload.fvg_atr_mult <= 0.0:
+        return False, "Rejected: Missing FVG (Gap <= 0)."
+        
+    if payload.entry_zone == "NONE":
+        return False, "Rejected: Entry must occur inside the FVG retracement zone."
 
     # 2. Momentum / Displacement Check (Require at least an average sized candle, > 1.0 ATR)
     if payload.displacement_atr_mult < 1.0:
@@ -21,10 +24,10 @@ def evaluate_strategy(payload: WebhookPayload) -> tuple[bool, str]:
         return False, "Rejected: Setup occurred outside of an active session."
 
     # 4. HTF Alignment Check
-    if payload.direction == "LONG" and payload.htf_bias.upper() != "BULLISH":
-        return False, f"Rejected: Long setup against HTF bias ({payload.htf_bias})."
+    if payload.direction == "LONG" and payload.htf_trend.upper() != "BULLISH":
+        return False, f"Rejected: Long setup against HTF trend ({payload.htf_trend})."
         
-    if payload.direction == "SHORT" and payload.htf_bias.upper() != "BEARISH":
-        return False, f"Rejected: Short setup against HTF bias ({payload.htf_bias})."
+    if payload.direction == "SHORT" and payload.htf_trend.upper() != "BEARISH":
+        return False, f"Rejected: Short setup against HTF trend ({payload.htf_trend})."
         
     return True, "Passed all strict strategy filters"

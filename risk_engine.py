@@ -1,28 +1,29 @@
 from config import settings
 from models import WebhookPayload
 
-def evaluate_risk(payload: WebhookPayload, current_daily_losses: int) -> tuple[bool, str, float]:
+def evaluate_risk(payload: WebhookPayload, current_daily_losses: int) -> tuple[bool, str, dict]:
     """
     Validates risk rules and calculates position size.
-    Returns (is_valid, reason_if_invalid, suggested_position_size_usd)
+    Returns (is_valid, reason_if_invalid, risk_details_dict)
     """
+    empty_details = {"position_size_usd": 0.0, "units_to_buy": 0.0, "risk_per_unit": 0.0}
     # 1. Daily Loss Limit
     if current_daily_losses >= settings.max_daily_losses:
-        return False, f"Rejected: Reached max daily losses ({current_daily_losses}).", 0.0
+        return False, f"Rejected: Reached max daily losses ({current_daily_losses}).", empty_details
 
     # 2. Stop Distance & Logic Validation
     if payload.direction == "LONG" and payload.stop >= payload.entry:
-        return False, "Rejected: Invalid stop loss placement for LONG.", 0.0
+        return False, "Rejected: Invalid stop loss placement for LONG.", empty_details
     if payload.direction == "SHORT" and payload.stop <= payload.entry:
-        return False, "Rejected: Invalid stop loss placement for SHORT.", 0.0
+        return False, "Rejected: Invalid stop loss placement for SHORT.", empty_details
         
-    stop_distance = abs(payload.entry - payload.stop)
+    stop_distance = payload.stop_distance
     if stop_distance == 0:
-        return False, "Rejected: Stop distance cannot be zero.", 0.0
+        return False, "Rejected: Stop distance cannot be zero.", empty_details
 
     # 3. RR Validation
     if payload.rr < settings.min_rr:
-        return False, f"Rejected: RR too low ({payload.rr} < {settings.min_rr}).", 0.0
+        return False, f"Rejected: Conservative RR to TP1 too low ({payload.rr} < {settings.min_rr}).", empty_details
         
     # 4. Position Sizing
     # Max risk in USD based on account balance
@@ -37,4 +38,10 @@ def evaluate_risk(payload: WebhookPayload, current_daily_losses: int) -> tuple[b
     units_to_buy = max_risk_usd / risk_per_unit
     suggested_position_size = units_to_buy * payload.entry
     
-    return True, "Passed risk evaluation", round(suggested_position_size, 2)
+    details = {
+        "position_size_usd": round(suggested_position_size, 2),
+        "units_to_buy": round(units_to_buy, 4),
+        "risk_per_unit": round(risk_per_unit, 4)
+    }
+    
+    return True, "Passed risk evaluation", details

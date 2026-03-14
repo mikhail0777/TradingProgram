@@ -1,61 +1,141 @@
 //@version=5
-indicator("BOS + FVG Alert Generator", overlay=true)
+indicator("Strict BOS + FVG Alerts", overlay=true)
 
 // --- Inputs ---
-length = input.int(5, "Swing Length")
-atr_length = input.int(14, "ATR Length")
-disp_mult = input.float(1.5, "Displacement ATR Multiplier")
-min_fvg_size = input.float(0.2, "Min FVG Size (ATR Mult)")
-session_str = input.session("0930-1600", "Active Session (EST)")
-htf_bias_input = input.string("BULLISH", "HTF Bias", options=["BULLISH", "BEARISH", "NEUTRAL"])
-risk_reward = input.float(2.0, "Target R:R")
+grp_strat = "Strategy Rules"
+length = input.int(5, "Swing Length", group=grp_strat)
+atr_length = input.int(14, "ATR Length", group=grp_strat)
+disp_mult = input.float(1.5, "Displacement ATR Multiplier", group=grp_strat)
+min_fvg_size = input.float(0.2, "Min FVG Size (ATR)", group=grp_strat)
+session_str = input.session("0930-1600", "Active Session (EST)", group=grp_strat)
+
+grp_htf = "Higher Timeframe"
+ema_htf_len = input.int(200, "HTF Trend EMA Length", group=grp_htf)
+
+grp_range = "Chop/Range Filter"
+min_atr_percent = input.float(0.1, "Min ATR % (Avoid extreme chop)", group=grp_range)
+
+grp_exits = "Trade Exits & Management"
+risk_reward_1 = input.float(1.0, "Target 1 R:R", group=grp_exits)
+risk_reward_2 = input.float(2.0, "Target 2 R:R", group=grp_exits)
+be_after_tp1 = input.bool(true, "Move Stop to Break-Even after TP1", group=grp_exits)
+trail_stop = input.bool(false, "Trail Stop behind Swings", group=grp_exits)
 
 // --- Session Filter ---
 inSession = not na(time(timeframe.period, session_str, "America/New_York"))
 session_name = inSession ? "NY" : "NONE"
 
-// --- Swing Points (Basic) ---
-var float swingHigh = na
-var float swingLow = na
-if ta.highest(high, length * 2 + 1) == high[length]
-    swingHigh := high[length]
-if ta.lowest(low, length * 2 + 1) == low[length]
-    swingLow := low[length]
+// --- HTF Trend ---
+// Using current TF EMA 200 as a proxy for trend
+ema_trend = ta.ema(close, ema_htf_len)
+htf_trend = close > ema_trend ? "BULLISH" : (close < ema_trend ? "BEARISH" : "NEUTRAL")
 
-// --- BOS Logic ---
-bullBOS = close > swingHigh and close[1] <= swingHigh
-bearBOS = close < swingLow and close[1] >= swingLow
-
-// --- FVG Logic & Displacement ---
+// --- Chop Filter ---
 atr = ta.atr(atr_length)
+is_chop = (atr / close * 100) < min_atr_percent
 
+// --- Swing Points ---
+// Wait for a confirmed swing high/low (n bars left, n bars right)
+swingHigh = ta.pivothigh(high, length, length)
+swingLow = ta.pivotlow(low, length, length)
+
+var float lastHigh = na
+var float lastLow = na
+if not na(swingHigh)
+    lastHigh := swingHigh
+if not na(swingLow)
+    lastLow := swingLow
+
+// --- Strict BOS Logic ---
+// We require close to be > lastHigh and previous close <= lastHigh
+// AND it must be a strong displacement candle.
+bodySize = math.abs(close - open)
+displacement_mult = bodySize / atr
+is_displacement = displacement_mult >= disp_mult
+
+bullBOS = close > lastHigh and close[1] <= lastHigh and is_displacement
+bearBOS = close < lastLow and close[1] >= lastLow and is_displacement
+
+// --- FVG Logic ---
 bullFVG_gap = low - high[2]
 bearFVG_gap = low[2] - high
 bullFVG = low > high[2] and close > open and bullFVG_gap >= (atr * min_fvg_size)
 bearFVG = high < low[2] and close < open and bearFVG_gap >= (atr * min_fvg_size)
 
-bodySize = math.abs(close - open)
-displacement_mult = bodySize / atr
+// --- Setup State Machine (Wait for Retrace) ---
+var string pending_setup = "NONE"
+var float fvg_top = na
+var float fvg_bot = na
+var float entry_price = na
+var float stop_price = na
+var float tp1_price = na
+var float tp2_price = na
+var float bos_price = na
+var float fvg_mult_stored = na
+var float disp_mult_stored = na
 
-// --- Setup Conditions ---
-long_setup = bullBOS and bullFVG and inSession
-short_setup = bearBOS and bearFVG and inSession
+// Find setups (BOS + FVG on same candle)
+if bullBOS and bullFVG and htf_trend == "BULLISH" and not is_chop and inSession
+    pending_setup := "LONG"
+    fvg_top := low
+    fvg_bot := high[2]
+    stop_price := lastLow
+    bos_price := lastHigh
+    fvg_mult_stored := bullFVG_gap / atr
+    disp_mult_stored := displacement_mult
 
-// --- Alert Values ---
-float entry_price = close
-float stop_price = long_setup ? low[1] : (short_setup ? high[1] : na)
-float target_price = long_setup ? entry_price + (entry_price - stop_price) * risk_reward : (short_setup ? entry_price - (stop_price - entry_price) * risk_reward : na)
+if bearBOS and bearFVG and htf_trend == "BEARISH" and not is_chop and inSession
+    pending_setup := "SHORT"
+    fvg_top := low[2]
+    fvg_bot := high
+    stop_price := lastHigh
+    bos_price := lastLow
+    fvg_mult_stored := bearFVG_gap / atr
+    disp_mult_stored := displacement_mult
 
-// --- JSON Strings ---
-webhook_json_long = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "LONG", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '", "liquidity_sweep": true}'
+// --- Entry Logic (Retracement) ---
+long_trigger = false
+short_trigger = false
 
-webhook_json_short = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "SHORT", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "target": ' + str.tostring(target_price) + ', "bos_detected": true, "fvg_detected": true, "displacement_atr_mult": ' + str.tostring(displacement_mult) + ', "active_session": "' + session_name + '", "htf_bias": "' + htf_bias_input + '", "liquidity_sweep": true}'
+if pending_setup == "LONG"
+    // Wait for price to retrace into the FVG Zone
+    if low <= fvg_top and high >= fvg_bot
+        long_trigger := true // Retracement entry!
+        entry_price := close 
+        risk = entry_price - stop_price
+        tp1_price := entry_price + (risk * risk_reward_1)
+        tp2_price := entry_price + (risk * risk_reward_2)
+        pending_setup := "NONE" // Reset after trigger
+        
+    // Invalidation: if price closes below FVG bottom before entry
+    else if close < fvg_bot
+        pending_setup := "NONE"
 
-// --- Fires ---
-if long_setup
-    alert(webhook_json_long, alert.freq_once_per_bar_close)
-if short_setup
-    alert(webhook_json_short, alert.freq_once_per_bar_close)
+if pending_setup == "SHORT"
+    // Wait for price to retrace into the FVG Zone
+    if high >= fvg_bot and low <= fvg_top
+        short_trigger := true // Retracement entry!
+        entry_price := close 
+        risk = stop_price - entry_price
+        tp1_price := entry_price - (risk * risk_reward_1)
+        tp2_price := entry_price - (risk * risk_reward_2)
+        pending_setup := "NONE" // Reset after trigger
+        
+    // Invalidation: if price closes above FVG top before entry
+    else if close > fvg_top
+        pending_setup := "NONE"
 
-plotshape(long_setup, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, title="Long Setup")
-plotshape(short_setup, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, title="Short Setup")
+// --- Alert Construction ---
+string be_str = be_after_tp1 ? "true" : "false"
+string trail_str = trail_stop ? "true" : "false"
+
+if long_trigger
+    json_long = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "LONG", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "tp1": ' + str.tostring(tp1_price) + ', "tp2": ' + str.tostring(tp2_price) + ', "bos_direction": "BULLISH", "fvg_top": ' + str.tostring(fvg_top) + ', "fvg_bottom": ' + str.tostring(fvg_bot) + ', "fvg_atr_mult": ' + str.tostring(fvg_mult_stored) + ', "displacement_atr_mult": ' + str.tostring(disp_mult_stored) + ', "active_session": "' + session_name + '", "htf_trend": "' + htf_trend + '", "liquidity_sweep": true, "entry_zone": "FVG_RETRACE", "be_enabled": ' + be_str + ', "trail_enabled": ' + trail_str + '}'
+    alert(json_long, alert.freq_once_per_bar_close)
+
+if short_trigger
+    json_short = '{"symbol": "' + syminfo.ticker + '", "timeframe": "' + timeframe.period + '", "direction": "SHORT", "entry": ' + str.tostring(entry_price) + ', "stop": ' + str.tostring(stop_price) + ', "tp1": ' + str.tostring(tp1_price) + ', "tp2": ' + str.tostring(tp2_price) + ', "bos_direction": "BEARISH", "fvg_top": ' + str.tostring(fvg_top) + ', "fvg_bottom": ' + str.tostring(fvg_bot) + ', "fvg_atr_mult": ' + str.tostring(fvg_mult_stored) + ', "displacement_atr_mult": ' + str.tostring(disp_mult_stored) + ', "active_session": "' + session_name + '", "htf_trend": "' + htf_trend + '", "liquidity_sweep": true, "entry_zone": "FVG_RETRACE", "be_enabled": ' + be_str + ', "trail_enabled": ' + trail_str + '}'
+    alert(json_short, alert.freq_once_per_bar_close)
+
+plotshape(long_trigger, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, title="Long Entry")
+plotshape(short_trigger, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, title="Short Entry")

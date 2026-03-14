@@ -1,37 +1,40 @@
 import json
-import random
+import hashlib
 from models import WebhookPayload, AIReviewResult
 from config import settings
 
 def mock_ai_review(payload: WebhookPayload) -> AIReviewResult:
-    """Mock implementation of the AI reviewer for paper trading context."""
+    """Deterministic Mock implementation of the AI reviewer for testing."""
+    # Use a deterministic hash of the setup to determine outcome without random bugs
+    setup_str = f"{payload.symbol}_{payload.timeframe}_{payload.direction}_{payload.entry}"
+    hash_val = int(hashlib.md5(setup_str.encode()).hexdigest(), 16) % 100
+    
     # Simulate some logic based on rr and strategy inputs
-    if payload.rr >= 3.0:
+    if payload.rr >= 3.0 and hash_val > 10:
         return AIReviewResult(
             action="TAKE",
             grade="A",
-            confidence=90,
-            reasons=["High R:R ratio", "Strong structural bias", "Clear invalidation point"]
+            confidence=90 + (hash_val % 10),
+            reasons=["High R:R ratio to TP1", "Strong structural bias", "Clear invalidation point in FVG"]
         )
     elif payload.rr >= 2.0:
-        action = random.choice(["TAKE", "WAIT"])
-        if action == "TAKE":
+        if hash_val > 40:
             return AIReviewResult(
                 action="TAKE",
                 grade="B",
-                confidence=75,
-                reasons=["Acceptable R:R", "Matches HTF bias", "Volume profile is slightly mixed"]
+                confidence=70 + (hash_val % 20),
+                reasons=["Acceptable R:R", f"Matches HTF bias ({payload.htf_trend})", "Volume profile is slightly mixed"]
             )
         else:
              return AIReviewResult(
                 action="WAIT",
                 grade="C",
                 confidence=85,
-                reasons=["Acceptable R:R but displacement could be stronger", "Awaiting lower timeframe entry confirmation", "Liquidity draw is unclear"]
+                reasons=[f"Acceptable R:R but displacement is weak ({round(payload.displacement_atr_mult, 2)}x)", "Awaiting lower timeframe entry confirmation", "Liquidity draw is unclear"]
             )
     else:
         # Default failsafe
-        return AIReviewResult(action="SKIP", grade="F", confidence=95, reasons=["R:R below acceptable threshold"])
+        return AIReviewResult(action="SKIP", grade="F", confidence=95, reasons=["R:R below acceptable minimal threshold to TP1"])
 
 
 def real_ai_review(payload: WebhookPayload) -> AIReviewResult:

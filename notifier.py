@@ -10,13 +10,15 @@ def send_notification(payload: WebhookPayload, ai_review: AIReviewResult | None,
     
     if rejection_reason:
         message += f"\n❌ **REJECTED**: {rejection_reason}"
-        message += f"\n- Entry: {payload.entry} | Stop: {payload.stop} | Target: {payload.target}"
+        message += f"\n- Entry: {payload.entry} (Zone: {payload.entry_zone}) | Stop: {payload.stop} | TP1: {payload.tp1} | TP2: {payload.tp2}"
     else:
         message += f"\n✅ **APPROVED BY STRATEGY**"
-        message += f"\n- Entry: {payload.entry}"
-        message += f"\n- Stop: {payload.stop}"
-        message += f"\n- Target: {payload.target}"
-        message += f"\n- R:R: {payload.rr}"
+        message += f"\n- Entry: {payload.entry} (Zone: {payload.entry_zone})"
+        message += f"\n- Stop: {payload.stop} (Dist: {round(payload.stop_distance, 2)})"
+        message += f"\n- Target 1: {payload.tp1} (RR: {payload.rr})"
+        message += f"\n- Target 2: {payload.tp2}"
+        message += f"\n- Management: BE={payload.be_enabled}, Trail={payload.trail_enabled}"
+        message += f"\n- Context: BOS {payload.bos_direction}, HTF {payload.htf_trend}"
     
     if ai_review:
         message += f"\n\n🤖 **AI Review**: {ai_review.action} (Grade: {ai_review.grade}, Conf: {ai_review.confidence}%)"

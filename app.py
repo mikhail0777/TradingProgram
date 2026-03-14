@@ -38,8 +38,12 @@ def receive_webhook(
     Main entrypoint: Webhook -> Validation -> Strategy -> Risk -> AI Review -> Logging -> Notify
     """
     # Create an initial record structure
-    trade_data = payload.model_dump(exclude={"bos_detected", "fvg_detected", "displacement_atr_mult", "active_session", "htf_bias", "liquidity_sweep"})
+    trade_data = payload.model_dump(exclude={
+        "fvg_atr_mult", "displacement_atr_mult", "active_session", 
+        "liquidity_sweep", "be_enabled", "trail_enabled"
+    })
     trade_data["rr"] = payload.rr
+    trade_data["stop_distance"] = payload.stop_distance
     
     # 1. Strategy Filters
     strategy_passed, strat_reason = evaluate_strategy(payload)
@@ -51,7 +55,7 @@ def receive_webhook(
         
     # 2. Risk Engine
     daily_losses = get_daily_losses(db)
-    risk_passed, risk_reason, position_size = evaluate_risk(payload, daily_losses)
+    risk_passed, risk_reason, risk_details = evaluate_risk(payload, daily_losses)
     if not risk_passed:
         trade_data.update({"status": "REJECTED", "reason": risk_reason})
         db_trade = add_trade(db, trade_data)
@@ -77,7 +81,10 @@ def receive_webhook(
         "status": "success",
         "trade_id": db_trade.id,
         "action": ai_result.action,
-        "position_size": position_size,
+        "position_size_usd": risk_details["position_size_usd"],
+        "suggested_units": risk_details["units_to_buy"],
+        "risk_per_unit": risk_details["risk_per_unit"],
+        "rr": payload.rr,
         "message": "Alert processed and simulated."
     }
 
