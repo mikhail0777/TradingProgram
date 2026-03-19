@@ -36,7 +36,7 @@ def get_daily_losses(db: Session) -> int:
     ).count()
 
 class TradingBot:
-    def __init__(self, symbol='BTC/USD'):
+    def __init__(self, symbol='SPY'):
         self.symbol = symbol
         self.data_feed = MarketDataFeed(symbol=symbol)
         self.analyzer = MarketAnalyzer()

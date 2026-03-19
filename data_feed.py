@@ -1,4 +1,4 @@
-import ccxt
+import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import logging
@@ -6,31 +6,39 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MarketDataFeed:
-    def __init__(self, exchange_id='gemini', symbol='BTC/USD', timeframe='1m'):
+    def __init__(self, symbol='SPY', timeframe='1m'):
         """
-        Initializes the data feed using CCXT.
-        Defaults to Gemini and BTC/USD 1m candles.
+        Initializes the data feed using Yahoo Finance.
+        Defaults to SPY and 1m candles.
         """
-        self.exchange_class = getattr(ccxt, exchange_id)
-        # Using rateLimit=True to avoid hitting API rate limits automatically
-        self.exchange = self.exchange_class({'enableRateLimit': True})
         self.symbol = symbol
         self.timeframe = timeframe
         self.df = pd.DataFrame()
 
     def fetch_latest_candles(self, limit=200) -> pd.DataFrame:
-        """Fetches the latest OHLCV data and returns a pandas DataFrame."""
+        """Fetches the latest OHLCV data using yfinance."""
         try:
-            ohlcv = self.exchange.fetch_ohlcv(self.symbol, self.timeframe, limit=limit)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            ticker = yf.Ticker(self.symbol)
+            # yfinance mapping: 1m data is limited to last 7 days. limit parameter determines days.
+            df = ticker.history(period="5d", interval=self.timeframe)
+            if df.empty:
+                return pd.DataFrame()
             
-            # Remove incomplete active candle if needed, but for real-time analysis 
-            # we sometimes need the current volatile price. We'll leave it in.
+            # yfinance returns timezone-aware datetime index.
+            df.reset_index(inplace=True)
+            # Rename columns to lowercase to match our existing system
+            df.rename(columns={'Datetime': 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
+            
+            # Ensure timestamp is standard pandas datetime
+            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+            
+            # Drop unnecessary cols like 'Dividends', 'Stock Splits'
+            df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+            
             self.df = df
             return df
         except Exception as e:
-            logger.error(f"Error fetching data from {self.exchange.id}: {e}")
+            logger.error(f"Error fetching yfinance data for {self.symbol}: {e}")
             return pd.DataFrame()
 
     def get_aggregated_candles(self, df: pd.DataFrame = None, timeframe_rule='5min') -> pd.DataFrame:
@@ -62,8 +70,6 @@ class MarketDataFeed:
             df['ATR'] = 0.0
             return df
         
-        # Using pandas_ta for ATR
         df['ATR'] = ta.atr(df['high'], df['low'], df['close'], length=length)
-        # Fill NaNs from early lookback period with 0.0
         df['ATR'] = df['ATR'].fillna(0.0)
         return df

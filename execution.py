@@ -1,53 +1,62 @@
-import ccxt
 import logging
 from config import settings
+import alpaca_trade_api as tradeapi
 
 logger = logging.getLogger(__name__)
 
 class Executor:
-    def __init__(self, exchange_id='gemini'):
+    def __init__(self):
         self.mode = settings.execution_mode
-        self.exchange_class = getattr(ccxt, exchange_id)
         
         if self.mode == "LIVE":
-            if not settings.gemini_api_key or not settings.gemini_api_secret:
-                logger.warning("LIVE mode requested but Gemini API keys are missing. Falling back to PAPER mode.")
+            if not settings.alpaca_api_key or not settings.alpaca_api_secret:
+                logger.warning("LIVE mode requested but Alpaca API keys are missing. Falling back to PAPER mode.")
                 self.mode = "PAPER"
             else:
-                self.exchange = self.exchange_class({
-                    'apiKey': settings.gemini_api_key,
-                    'secret': settings.gemini_api_secret,
-                    'enableRateLimit': True,
-                })
+                self.api = tradeapi.REST(
+                    key_id=settings.alpaca_api_key,
+                    secret_key=settings.alpaca_api_secret,
+                    base_url=settings.alpaca_base_url
+                )
                 try:
                     # Test connection
-                    self.exchange.fetch_balance()
-                    logger.info(f"Successfully connected to {exchange_id} in LIVE mode.")
+                    account = self.api.get_account()
+                    logger.info(f"Successfully connected to Alpaca in LIVE mode. Account Status: {account.status}")
                 except Exception as e:
-                    logger.error(f"Failed to connect to broker: {e}")
+                    logger.error(f"Failed to connect to Alpaca broker: {e}")
                     raise
         
         if self.mode == "PAPER":
-            logger.info(f"Executor initialized in PAPER mode - no real orders will be placed on {exchange_id}.")
+            logger.info("Executor initialized in PAPER format - no real orders will be sent to the broker.")
 
     def place_order(self, symbol: str, direction: str, quantity: float, entry_price: float, stop_loss_price: float, take_profit_price: float) -> dict | None:
-        """Places the bracket / SL/TP orders."""
         if self.mode == "PAPER":
-            logger.info(f"[PAPER TRADE] Placed {direction} {quantity} of {symbol} @ {entry_price} [SL: {stop_loss_price}, TP: {take_profit_price}]")
+            logger.info(f"[PAPER TRADE] Placed {direction} {quantity} shares of {symbol} @ {entry_price} [SL: {stop_loss_price}, TP: {take_profit_price}]")
             return {"status": "paper_success", "id": "paper_test_001"}
             
         try:
-            # We place a basic market order for entry in ccxt. 
-            # Note: Managing SL and TP bracket orders on Gemini via CCXT often requires placing stop-limit orders or handling them via an active monitoring loop.
             order_side = 'buy' if direction == 'LONG' else 'sell'
             
-            logger.info(f"[LIVE TRADE] Placing {order_side} market order for {quantity} {symbol}")
-            entry_order = self.exchange.create_order(symbol, 'market', order_side, quantity)
+            logger.info(f"[LIVE TRADE] Placing Bracket Order for {quantity} shares of {symbol}")
             
-            logger.info(f"Entry order placed: {entry_order.get('id', 'Unknown ID')}.")
-            # Production implementations would wait for fill, then actively place conditional SL and TP orders.
+            # Alpaca supports full bracket orders natively (Entry -> Stop Loss + Take Profit)
+            order = self.api.submit_order(
+                symbol=symbol,
+                qty=quantity,
+                side=order_side,
+                type='market',
+                time_in_force='gtc',
+                order_class='bracket',
+                take_profit=dict(
+                    limit_price=round(take_profit_price, 2),
+                ),
+                stop_loss=dict(
+                    stop_price=round(stop_loss_price, 2),
+                )
+            )
             
-            return entry_order
+            logger.info(f"Bracket order placed: {order.id}.")
+            return {"status": "success", "id": order.id, "order": order}
         except Exception as e:
-            logger.error(f"Error placing live order: {e}")
+            logger.error(f"Error placing live Alpaca order: {e}")
             return None

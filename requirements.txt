@@ -9,3 +9,5 @@ ccxt
 pandas
 pandas-ta
 openai
+yfinance
+alpaca-trade-api
