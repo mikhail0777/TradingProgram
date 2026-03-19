@@ -5,3 +5,7 @@ pydantic-settings
 sqlalchemy
 python-dotenv
 requests
+ccxt
+pandas
+pandas-ta
+openai

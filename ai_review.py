@@ -38,26 +38,47 @@ def mock_ai_review(payload: WebhookPayload) -> AIReviewResult:
 
 
 def real_ai_review(payload: WebhookPayload) -> AIReviewResult:
-    """
-    Placeholder for real OpenAI integration.
-    You could format a prompt with the payload details and ask the model to return a structured JSON.
-    """
-    import openai
-    # Assuming openai is configured with settings.openai_api_key
-    # The real implementation would do an api call here.
-    # For now, if called without real logic, fallback to mock.
-    try:
-        if not settings.openai_api_key:
-            return mock_ai_review(payload)
-            
-        # Example pseudo-code for calling openai:
-        # response = openai.chat.completions.create(...)
-        # data = json.loads(response.choices[0].message.content)
-        # return AIReviewResult(**data)
-        
+    import json
+    from openai import OpenAI
+    
+    if not settings.openai_api_key:
         return mock_ai_review(payload)
+        
+    client = OpenAI(api_key=settings.openai_api_key)
+    
+    prompt = f"""
+    You are an expert algorithmic trading assistant evaluating a BOS + FVG setup.
+    Here are the metrics:
+    - Symbol: {payload.symbol} ({payload.timeframe})
+    - Direction: {payload.direction}
+    - Entry: {payload.entry}, Stop Loss: {payload.stop}, TP1: {payload.tp1}
+    - BOS Direction: {payload.bos_direction}
+    - FVG Metrics: Size = {payload.fvg_atr_mult}x ATR.
+    - Setup Session: {payload.active_session}
+    - HTF Trend: {payload.htf_trend}
+    - Displacement: {payload.displacement_atr_mult}x ATR.
+    - Risk/Reward to TP1: {payload.rr}
+    
+    Evaluate the strength of this setup. Respond in strict JSON format mapping to this schema:
+    {{
+      "action": "TAKE" | "WAIT" | "SKIP",
+      "grade": "A" | "B" | "C" | "F",
+      "confidence": <integer 0-100>,
+      "reasons": ["Reason 1", "Reason 2"]
+    }}
+    Do not output any markdown code blocks, just raw JSON.
+    Reject (SKIP or WAIT) if RR is low (< 1.5), or if it trades against HTF trend significantly.
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        data = json.loads(response.choices[0].message.content)
+        return AIReviewResult(**data)
     except Exception as e:
-        # If AI fails, default to WAIT, not TAKE
         return AIReviewResult(
             action="WAIT",
             grade="F",
