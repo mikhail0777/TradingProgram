@@ -1,8 +1,8 @@
 import requests
 from config import settings
-from models import WebhookPayload, AIReviewResult
+from models import TradeSetupPayload, AIReviewResult
 
-def send_notification(payload: WebhookPayload, ai_review: AIReviewResult | None, rejection_reason: str = None):
+def send_notification(payload: TradeSetupPayload, ai_review: AIReviewResult | None, rejection_reason: str = None):
     """
     Sends a formatted alert message to Discord and/or Telegram.
     """

@@ -1,53 +1,34 @@
-# Paper Trading Alert Application
+# Autonomous Paper Trading Bot
 
-A production-style webhook server for paper trading a BOS + FVG strategy. It receives JSON alerts from TradingView, applies strict strategy filters, evaluates risk management rules, optionally acts as an AI reviewer, logs all setups in SQLite, and sends out Discord/Telegram notifications.
+An autonomous paper trading system for a BOS + FVG strategy. It continually polls market data, applies strict technical structure filters, evaluates risk management rules, incorporates a mock/real AI reviewer, logs setups in SQLite, and executes simulated trades using an internal executor.
 
 ## Features
-- **FastAPI Webhook Server**: Receives POST requests securely.
-- **Strict Strategy Filters**: Rejects setups lacking structure breaks, displacement, or session alignment.
-- **Risk Engine**: Checks max daily losses, minimum RR, and calculates an exact position size off a 1% risk threshold.
-- **AI Review**: Extensible module to query OpenAI to critique a setup before logging/notifying. Defaults to mock/sandbox mode.
-- **Robust Storage**: Uses SQLite and SQLAlchemy to log `PENDING`, `REJECTED`, `WIN`, and `LOSS` trades.
-- **Result Updating Endpoint**: Provides a clean `/update_result` path to mark your paper trades post hoc and calculate win rates.
+- **Autonomous Setup Detection**: Automatically fetches market data and detects fair value gaps (FVGs) and breaks of structure (BOS) without external indicators.
+- **Strict Strategy Filters**: Rejects setups lacking correct positioning, strict invalidation, or session alignment.
+- **Risk Engine**: Checks max daily losses, positions sizes based on 1% risk threshold, and enforces global risk rules.
+- **AI Review**: Built-in module to query OpenAI for a secondary review of setups before entry.
+- **Trade Execution & Management**: Internal trade logic handles entry, partial take profits, breakeven trailing, and stop losses.
+- **Robust Storage**: Uses SQLite and SQLAlchemy to log the entire lifecycle of trades (`WAITING_FOR_RETRACE`, `ENTERED`, `STOPPED`, `TP2_HIT`).
 
 ## Setup Instructions
 
 ### 1. Install Dependencies
 Ensure Python 3.10+ is installed.
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment
-Rename `.env.example` to `.env` and fill in the values:
+Rename `.env.example` to `.env` and fill in the corresponding values (e.g., OpenAI Key, Discord Webhook).
 ```bash
-cp .env.example .env
-```
-Make sure to adjust the `WEBHOOK_SECRET` to whatever you paste into TradingView!
-If you have Discord/Telegram, configure URLs/tokens. Adjust the `ACCOUNT_BALANCE` and constraints as needed.
-
-### 3. Run the Server
-The simplest way to start the FastAPI server locally:
-```bash
-uvicorn app:app --reload --port 8000
+copy .env.example .env
 ```
 
-### 4. TradingView Alert Setup
-1. Paste the `pine/bos_fvg_alerts.pine` script into your Pine Editor and save it.
-2. Add it to your chart.
-3. Configure the settings (HTF bias, Session times) in the indicator inputs.
-4. Create an Alert condition using this indicator.
-5. Set the Action to **Webhook URL**. Use something like `http://<your-ip-or-ngrok>/webhook`.
-6. Enable sending custom headers: add `x-algo-secret: your_super_secret_webhook_token_here`.
+### 3. Run the Bot
+To start the autonomous market scanner and trader:
+```bash
+python bot.py
+```
 
 ## Tracking Results
-The backend is configured to use a SQLite database. Trades are inserted exactly as they happen.
-
-To update the final conclusion of an entry (since this is a pure alert system without broker integration), issue a POST command from Postman, curl, or a script:
-```bash
-curl -X POST http://localhost:8000/update_result \
-     -H "Content-Type: application/json" \
-     -d '{"trade_id": 1, "outcome": "WIN"}'
-```
-
-Afterward, you can query your local `paper_trades.db` utilizing any SQLite viewer (like DBeaver or SQLite Studio) to figure out true win rates filtered by symbol, AI grade, or timeframe!
+The bot logs everything natively into the `paper_trades.db` SQLite database. You can query your local database utilizing any SQLite viewer (like DBeaver or SQLite Studio) to figure out true win rates filtered by symbol, AI grade, or timeframe!

@@ -1,7 +1,7 @@
 from config import settings
-from models import WebhookPayload
+from models import TradeSetupPayload
 
-def evaluate_risk(payload: WebhookPayload, current_daily_losses: int) -> tuple[bool, str, dict]:
+def evaluate_risk(payload: TradeSetupPayload, current_daily_losses: int) -> tuple[bool, str, dict]:
     """
     Validates risk rules and calculates position size.
     Returns (is_valid, reason_if_invalid, risk_details_dict)
@@ -41,7 +41,10 @@ def evaluate_risk(payload: WebhookPayload, current_daily_losses: int) -> tuple[b
     details = {
         "position_size_usd": round(suggested_position_size, 2),
         "units_to_buy": round(units_to_buy, 4),
-        "risk_per_unit": round(risk_per_unit, 4)
+        "risk_per_unit": round(risk_per_unit, 4),
+        "stop_distance": stop_distance,
+        "rr_to_tp1": payload.rr_to_tp1,
+        "rr_to_tp2": payload.rr_to_tp2
     }
     
     return True, "Passed risk evaluation", details

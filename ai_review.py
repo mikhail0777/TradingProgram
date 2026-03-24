@@ -1,9 +1,9 @@
 import json
 import hashlib
-from models import WebhookPayload, AIReviewResult
+from models import TradeSetupPayload, AIReviewResult
 from config import settings
 
-def mock_ai_review(payload: WebhookPayload) -> AIReviewResult:
+def mock_ai_review(payload: TradeSetupPayload) -> AIReviewResult:
     """Deterministic Mock implementation of the AI reviewer for testing."""
     # Use a deterministic hash of the setup to determine outcome without random bugs
     setup_str = f"{payload.symbol}_{payload.timeframe}_{payload.direction}_{payload.entry}"
@@ -37,7 +37,7 @@ def mock_ai_review(payload: WebhookPayload) -> AIReviewResult:
         return AIReviewResult(action="SKIP", grade="F", confidence=95, reasons=["R:R below acceptable minimal threshold to TP1"])
 
 
-def real_ai_review(payload: WebhookPayload) -> AIReviewResult:
+def real_ai_review(payload: TradeSetupPayload) -> AIReviewResult:
     import json
     from openai import OpenAI
     
@@ -86,7 +86,7 @@ def real_ai_review(payload: WebhookPayload) -> AIReviewResult:
             reasons=[f"AI review failed with error: {str(e)}", "Defaulting to WAIT as safety mechanism"]
         )
 
-def run_ai_review(payload: WebhookPayload) -> AIReviewResult:
+def run_ai_review(payload: TradeSetupPayload) -> AIReviewResult:
     """Main entrypoint for AI Review."""
     if settings.use_mock_ai:
         return mock_ai_review(payload)

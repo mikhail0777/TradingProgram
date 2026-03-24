@@ -1,5 +1,3 @@
-fastapi
-uvicorn
 pydantic
 pydantic-settings
 sqlalchemy
@@ -10,4 +8,5 @@ pandas
 pandas-ta
 openai
 yfinance
-alpaca-trade-api
+alpaca-py
+alpha_vantage
