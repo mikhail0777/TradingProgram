@@ -14,6 +14,7 @@ from execution import Executor
 from data_feed import MarketDataFeed
 from analyzer import MarketAnalyzer
 from sqlalchemy.orm import Session
+from diagnostics import diagnostics
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -51,11 +52,16 @@ class TradingBot:
         init_db()
         self.db = next(get_db())
 
-    def cancel_setup(self, symbol: str, db_id: int, reason: str, end_status: str = "CANCELLED"):
+    def cancel_setup(self, symbol: str, db_id: int, reason: str, end_status: str = "CANCELLED", stage: str = "UNKNOWN"):
         logger.info(f"Setup {db_id} {end_status} on {symbol}: {reason}")
         self.db.query(DBTrade).filter(DBTrade.id == db_id).update({"status": end_status, "reason": reason})
         self.db.commit()
         self.active_setups.pop(symbol, None)
+        
+        if end_status == "REJECTED":
+            diagnostics.log_rejection(symbol, reason, stage)
+        elif end_status == "CANCELLED":
+            diagnostics.log_cancelled(symbol, reason)
         
     def apply_cooldown(self, symbol: str, minutes: int = 15):
         self.symbol_cooldowns[symbol] = datetime.utcnow() + timedelta(minutes=minutes)
@@ -63,6 +69,7 @@ class TradingBot:
 
     async def run_loop(self):
         logger.info(f"Starting bot loop for {self.symbols}...")
+        asyncio.create_task(self.periodic_reporting())
         while True:
             for sym in self.symbols:
                 try:
@@ -92,11 +99,32 @@ class TradingBot:
         df_analyzed = self.analyzer.analyze(df_5m)
         latest = df_analyzed.iloc[-1]
         
+        # Track diagnostics on the freshly closed 5m candle
+        timestamp_str = str(latest['timestamp'])
+        raw_bos = latest.get('raw_bos_direction', 'NONE')
+        valid_bos = latest.get('bos_direction', 'NONE')
+        raw_fvg = latest.get('raw_fvg_active', False)
+        valid_fvg = latest.get('fvg_active', False)
+        
+        diagnostics.process_new_candle(
+            symbol=symbol,
+            timestamp_str=timestamp_str,
+            raw_bos_dir=raw_bos,
+            valid_bos_dir=valid_bos,
+            raw_fvg=raw_fvg,
+            valid_fvg=valid_fvg
+        )
+        
         if not latest['fvg_active'] or latest['bos_direction'] == 'NONE':
             return
             
         self.evaluate_new_setup(symbol, latest, df_1m, df_5m)
         
+    async def periodic_reporting(self):
+        while True:
+            await asyncio.sleep(15 * 60) # 15 minutes
+            diagnostics.print_summary()
+
     def evaluate_new_setup(self, symbol: str, latest: pd.Series, df_1m: pd.DataFrame, df_5m: pd.DataFrame):
         # Prevent secondary setup if one is already active
         if symbol in self.active_setups:
@@ -145,33 +173,37 @@ class TradingBot:
             
         htf_trend = self.analyzer.get_htf_trend(df_1m)
         
-        payload = TradeSetupPayload(
-            symbol=symbol,
-            timeframe='5m',
-            direction=direction,
-            entry=round(entry_price, 2),
-            stop=round(stop, 2),
-            tp1=round(tp1, 2),
-            tp2=round(tp2, 2),
-            bos_direction=latest['bos_direction'],
-            fvg_top=latest['fvg_top'],
-            fvg_bottom=latest['fvg_bottom'],
-            fvg_atr_mult=latest['fvg_atr_mult'],
-            displacement_atr_mult=latest['displacement_atr_mult'],
-            active_session=get_current_session(),
-            htf_trend=htf_trend,
-            liquidity_sweep=False,
-            entry_zone=mode,
-            be_enabled=settings.break_even_after_tp1,
-            trail_enabled=settings.trailing_after_tp1,
-            volume_ratio=latest.get('volume_ratio', 1.0),
-            chop_flag=bool(latest.get('chop_flag', False)),
-            stop_buffer=settings.stop_buffer_atr,
-            tp2_rr=settings.tp2_rr,
-            expiry_bars=settings.max_bars_to_retrace
-        )
-        setattr(payload, 'fvg_stale', bool(latest.get('fvg_stale', False)))
-        
+        try:
+            payload = TradeSetupPayload(
+                symbol=symbol,
+                timeframe='5m',
+                direction=direction,
+                entry=round(entry_price, 2),
+                stop=round(stop, 2),
+                tp1=round(tp1, 2),
+                tp2=round(tp2, 2),
+                bos_direction=latest['bos_direction'],
+                fvg_top=latest['fvg_top'],
+                fvg_bottom=latest['fvg_bottom'],
+                fvg_atr_mult=latest['fvg_atr_mult'],
+                displacement_atr_mult=latest['displacement_atr_mult'],
+                active_session=get_current_session(),
+                htf_trend=htf_trend,
+                liquidity_sweep=False,
+                entry_zone=mode,
+                be_enabled=settings.break_even_after_tp1,
+                trail_enabled=settings.trailing_after_tp1,
+                volume_ratio=latest.get('volume_ratio', 1.0),
+                chop_flag=bool(latest.get('chop_flag', False)),
+                stop_buffer=settings.stop_buffer_atr,
+                tp2_rr=settings.tp2_rr,
+                expiry_bars=settings.max_bars_to_retrace,
+                fvg_stale=bool(latest.get('fvg_stale', False))
+            )
+        except Exception as e:
+            logger.error(f"Critical error generating TradeSetupPayload for {symbol}: {e}", exc_info=True)
+            return
+            
         self.process_signal(payload, fvg_time)
         
     def process_signal(self, payload: TradeSetupPayload, fvg_time: str):
@@ -191,6 +223,7 @@ class TradingBot:
             trade_data.update({"status": "REJECTED", "reason": strat_reason})
             add_trade(self.db, trade_data)
             logger.info(strat_reason)
+            diagnostics.log_rejection(payload.symbol, strat_reason, 'STRATEGY')
             return
 
         trade_data.update({
@@ -200,6 +233,8 @@ class TradingBot:
         db_trade = add_trade(self.db, trade_data)
         logger.info(f"\n+++ Setup Identified: {payload.direction} @ {payload.entry} (SL: {payload.stop}) +++")
         logger.info(f"Setup {db_trade.id} WAITING_FOR_RETRACE on {payload.symbol}")
+        
+        diagnostics.log_waiting_for_retrace(payload, db_trade.id, now_utc)
         
         self.active_setups[payload.symbol] = {
             'payload': payload,
@@ -265,7 +300,7 @@ class TradingBot:
             risk_passed, risk_reason, risk_details = evaluate_risk(payload, daily_losses)
             
             if not risk_passed:
-                self.cancel_setup(symbol, db_id, f"Risk/Sizing: {risk_reason}", "REJECTED")
+                self.cancel_setup(symbol, db_id, f"Risk/Sizing: {risk_reason}", "REJECTED", "RISK")
                 return
                 
             projected_notional = current_notional + (payload.entry * risk_details["units_to_buy"])
@@ -275,7 +310,7 @@ class TradingBot:
                 
             ai_result = run_ai_review(payload)
             if ai_result.action != "TAKE":
-                self.cancel_setup(symbol, db_id, f"AI Rejected: {ai_result.action}", "REJECTED")
+                self.cancel_setup(symbol, db_id, f"AI Rejected: {ai_result.action} ({', '.join(ai_result.reasons)})", "REJECTED", "AI")
                 send_notification(payload, ai_result)
                 return
                 
@@ -296,6 +331,7 @@ class TradingBot:
                 stop_loss_price=payload.stop,
                 take_profit_price=payload.tp1
             )
+            diagnostics.log_entered(symbol)
             send_notification(payload, ai_result)
             self.active_setups.pop(symbol, None)
             return
@@ -306,6 +342,24 @@ class TradingBot:
         mins_elapsed = (datetime.utcnow() - setup['detected_time']).total_seconds() / 60
         
         if mins_elapsed > max_mins:
+            # Calculate distance missed
+            setup_time_utc = pd.to_datetime(setup['detected_time'], utc=True)
+            recent_df = df_1m[df_1m['timestamp'] > setup_time_utc]
+            
+            if recent_df.empty:
+                recent_df = df_1m.tail(1)
+                
+            if payload.direction == "LONG":
+                min_price = recent_df['low'].min()
+                missed_by = min_price - payload.entry
+            else:
+                max_price = recent_df['high'].max()
+                missed_by = payload.entry - max_price
+                
+            atr = latest.get('ATR', 0)
+            missed_by_atr = abs(missed_by) / atr if atr > 0 else 0
+            
+            diagnostics.log_expired(symbol, setup['detected_time'], "Timeout - Failed to retrace in time", abs(missed_by), missed_by_atr)
             self.cancel_setup(symbol, db_id, "Timeout - Failed to retrace in time", "EXPIRED")
 
     async def manage_open_trades(self, symbol: str, current_price: float, current_high: float, current_low: float):
@@ -384,3 +438,5 @@ if __name__ == "__main__":
         asyncio.run(bot.run_loop())
     except KeyboardInterrupt:
         logger.info("Bot stopped by user.")
+    finally:
+        diagnostics.print_summary(is_shutdown=True)

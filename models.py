@@ -34,6 +34,7 @@ class TradeSetupPayload(BaseModel):
     volume_ratio: float = Field(1.0, description="Relative volume ratio")
     chop_flag: bool = Field(False, description="Whether the setup is in chop")
     expiry_bars: int = Field(8, description="Max bars to retrace before expiry")
+    fvg_stale: bool = Field(False, description="Whether the FVG was invalidated before execution")
     
     @property
     def stop_distance(self) -> float:

@@ -29,6 +29,7 @@ class MarketAnalyzer:
     def detect_bos(self, df: pd.DataFrame) -> pd.DataFrame:
         """Detects Break of Structure based on candle close exceeding swing levels."""
         df['bos_direction'] = 'NONE'
+        df['raw_bos_direction'] = 'NONE'
         df['displacement_atr_mult'] = 0.0
         df['body_ratio'] = 0.0
         df['break_distance_atr'] = 0.0
@@ -56,12 +57,14 @@ class MarketAnalyzer:
                 
             # Bullish BOS
             if close > last_swing_high:
+                df.at[df.index[i], 'raw_bos_direction'] = 'BULLISH'
                 break_dist = (close - last_swing_high) / atr if atr > 0 else 0
                 df.at[df.index[i], 'break_distance_atr'] = break_dist
                 if displacement_mult >= self.atr_mult_threshold and body_ratio >= self.body_range_ratio_min and break_dist >= self.min_break_distance_atr:
                     df.at[df.index[i], 'bos_direction'] = 'BULLISH'
             # Bearish BOS
             elif close < last_swing_low:
+                df.at[df.index[i], 'raw_bos_direction'] = 'BEARISH'
                 break_dist = (last_swing_low - close) / atr if atr > 0 else 0
                 df.at[df.index[i], 'break_distance_atr'] = break_dist
                 if displacement_mult >= self.atr_mult_threshold and body_ratio >= self.body_range_ratio_min and break_dist >= self.min_break_distance_atr:
@@ -72,6 +75,7 @@ class MarketAnalyzer:
     def detect_fvg(self, df: pd.DataFrame) -> pd.DataFrame:
         """Detects Fair Value Gaps (Bullish & Bearish)."""
         df['fvg_active'] = False
+        df['raw_fvg_active'] = False
         df['fvg_type'] = 'NONE'
         df['fvg_top'] = 0.0
         df['fvg_bottom'] = 0.0
@@ -91,6 +95,7 @@ class MarketAnalyzer:
             
             # Bullish FVG: Low of candle 3 is higher than High of candle 1
             if low_i > high_i_minus_2:
+                df.at[df.index[i-1], 'raw_fvg_active'] = True
                 gap_size = low_i - high_i_minus_2
                 gap_mult = gap_size / atr if atr > 0 else 0
                 if gap_mult >= self.fvg_min_atr_mult:
@@ -103,6 +108,7 @@ class MarketAnalyzer:
                     
             # Bearish FVG: High of candle 3 is lower than Low of candle 1
             elif high_i < low_i_minus_2:
+                df.at[df.index[i-1], 'raw_fvg_active'] = True
                 gap_size = low_i_minus_2 - high_i
                 gap_mult = gap_size / atr if atr > 0 else 0
                 if gap_mult >= self.fvg_min_atr_mult:
