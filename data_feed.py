@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -17,29 +18,38 @@ class MarketDataFeed:
 
     def fetch_latest_candles(self, limit=200) -> pd.DataFrame:
         """Fetches the latest OHLCV data using yfinance."""
-        try:
-            ticker = yf.Ticker(self.symbol)
-            # yfinance mapping: 1m data is limited to last 7 days. limit parameter determines days.
-            df = ticker.history(period="5d", interval=self.timeframe)
-            if df.empty:
-                return pd.DataFrame()
-            
-            # yfinance returns timezone-aware datetime index.
-            df.reset_index(inplace=True)
-            # Rename columns to lowercase to match our existing system
-            df.rename(columns={'Datetime': 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
-            
-            # Ensure timestamp is standard pandas datetime
-            df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
-            
-            # Drop unnecessary cols like 'Dividends', 'Stock Splits'
-            df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
-            
-            self.df = df
-            return df
-        except Exception as e:
-            logger.error(f"Error fetching yfinance data for {self.symbol}: {e}")
-            return pd.DataFrame()
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                ticker = yf.Ticker(self.symbol)
+                # yfinance mapping: 1m data is limited to last 7 days. limit parameter determines days.
+                df = ticker.history(period="5d", interval=self.timeframe)
+                if df.empty:
+                    if attempt < max_retries - 1:
+                        time.sleep(1.0)
+                        continue
+                    return pd.DataFrame()
+                
+                # yfinance returns timezone-aware datetime index.
+                df.reset_index(inplace=True)
+                # Rename columns to lowercase to match our existing system
+                df.rename(columns={'Datetime': 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'}, inplace=True)
+                
+                # Ensure timestamp is standard pandas datetime
+                df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
+                
+                # Drop unnecessary cols like 'Dividends', 'Stock Splits'
+                df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                
+                self.df = df
+                return df
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Data feed timeout fetching {self.symbol}, retrying ({attempt+1}/{max_retries})...")
+                    time.sleep(1.5)
+                else:
+                    logger.error(f"Error fetching yfinance data for {self.symbol} after {max_retries} attempts: {e}")
+                    return pd.DataFrame()
 
     def get_aggregated_candles(self, df: pd.DataFrame = None, timeframe_rule='5min') -> pd.DataFrame:
         """Aggregates the base candles to a higher timeframe."""

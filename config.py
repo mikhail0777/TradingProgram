@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Trade Management & Strategy
     tp2_rr: float = 2.0
     stop_buffer_atr: float = 0.0
+    entry_tolerance_atr: float = 0.05
+    displacement_atr_threshold: float = 0.8
     break_even_after_tp1: bool = True
     trailing_after_tp1: bool = False
     trailing_mode: Literal["SWING", "ATR"] = "SWING"

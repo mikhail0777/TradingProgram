@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 
 from config import settings
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def get_current_session() -> str:
     """Basic session logic based on current UTC hour."""
-    now_utc = datetime.utcnow().time()
+    now_utc = datetime.now(timezone.utc).time()
     hour = now_utc.hour
     if 8 <= hour < 13:
         return "LONDON"
@@ -31,7 +31,7 @@ def get_current_session() -> str:
         return "ASIA"
 
 def get_daily_losses(db: Session) -> int:
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     return db.query(DBTrade).filter(
         DBTrade.timestamp >= today_start,
         DBTrade.status == "LOSS"
@@ -41,18 +41,25 @@ class TradingBot:
     def __init__(self):
         self.symbols = settings.symbols
         self.data_feeds = {sym: MarketDataFeed(symbol=sym) for sym in self.symbols}
-        self.analyzer = MarketAnalyzer()
+        self.analyzer = MarketAnalyzer(atr_mult_threshold=settings.displacement_atr_threshold)
         self.executor = Executor()
         
         # {symbol: {payload, db_id, detected_time, fvg_time}}
         self.active_setups = {}
         self.last_fvg_time = {sym: None for sym in self.symbols}
+        self.used_fvg_times = {sym: set() for sym in self.symbols}
         self.symbol_cooldowns = {sym: None for sym in self.symbols}
+        self.printed_signals = {sym: set() for sym in self.symbols}
         
         init_db()
         self.db = next(get_db())
+        
+        logger.info("=== Bot Runtime Configuration ===")
+        for k, v in settings.model_dump(exclude={'webhook_secret', 'discord_webhook_url', 'telegram_bot_token', 'telegram_chat_id', 'openai_api_key', 'alpaca_api_key', 'alpaca_api_secret', 'database_url'}).items():
+            logger.info(f"  {k}: {v}")
+        logger.info("=================================")
 
-    def cancel_setup(self, symbol: str, db_id: int, reason: str, end_status: str = "CANCELLED", stage: str = "UNKNOWN"):
+    def cancel_setup(self, symbol: str, db_id: int, reason: str, end_status: str = "CANCELLED", stage: str = "UNKNOWN", detected_time: datetime = None, missed_points: float = 0.0, missed_atr: float = 0.0):
         logger.info(f"Setup {db_id} {end_status} on {symbol}: {reason}")
         self.db.query(DBTrade).filter(DBTrade.id == db_id).update({"status": end_status, "reason": reason})
         self.db.commit()
@@ -61,10 +68,11 @@ class TradingBot:
         if end_status == "REJECTED":
             diagnostics.log_rejection(symbol, reason, stage)
         elif end_status == "CANCELLED":
-            diagnostics.log_cancelled(symbol, reason)
+            dt = detected_time if detected_time else datetime.now(timezone.utc)
+            diagnostics.log_cancelled(symbol, dt, reason, missed_points, missed_atr)
         
     def apply_cooldown(self, symbol: str, minutes: int = 15):
-        self.symbol_cooldowns[symbol] = datetime.utcnow() + timedelta(minutes=minutes)
+        self.symbol_cooldowns[symbol] = datetime.now(timezone.utc) + timedelta(minutes=minutes)
         logger.info(f"Applied {minutes}m cooldown for {symbol}.")
 
     async def run_loop(self):
@@ -97,14 +105,19 @@ class TradingBot:
         
         # 4. Analyze Technicals
         df_analyzed = self.analyzer.analyze(df_5m)
-        latest = df_analyzed.iloc[-1]
+        if len(df_analyzed) < 3:
+            return
+            
+        # FVG logic requires candle 3 to close. If iloc[-1] is the current open candle,
+        # iloc[-2] is the fully closed candle 3. The actual setup (candle 2) is at iloc[-3].
+        setup_candle = df_analyzed.iloc[-3]
         
-        # Track diagnostics on the freshly closed 5m candle
-        timestamp_str = str(latest['timestamp'])
-        raw_bos = latest.get('raw_bos_direction', 'NONE')
-        valid_bos = latest.get('bos_direction', 'NONE')
-        raw_fvg = latest.get('raw_fvg_active', False)
-        valid_fvg = latest.get('fvg_active', False)
+        # Track diagnostics on the newly fully confirmed candle
+        timestamp_str = str(setup_candle['timestamp'])
+        raw_bos = setup_candle.get('raw_bos_direction', 'NONE')
+        valid_bos = setup_candle.get('bos_direction', 'NONE')
+        raw_fvg = setup_candle.get('raw_fvg_active', False)
+        valid_fvg = setup_candle.get('fvg_active', False)
         
         diagnostics.process_new_candle(
             symbol=symbol,
@@ -115,10 +128,73 @@ class TradingBot:
             valid_fvg=valid_fvg
         )
         
-        if not latest['fvg_active'] or latest['bos_direction'] == 'NONE':
-            return
+        idx = len(df_analyzed) - 3
+        if valid_fvg or valid_bos != 'NONE':
+            if timestamp_str not in self.printed_signals[symbol]:
+                logger.info(f"[{symbol}] SIGNAL DETECTED at index {idx} ({timestamp_str}): FVG={valid_fvg}, BOS={valid_bos}")
+                self.printed_signals[symbol].add(timestamp_str)
             
-        self.evaluate_new_setup(symbol, latest, df_1m, df_5m)
+        # -- PAIRING SCANNER --
+        # Scan the last 15 fully closed candles to look for overlapping BOS + FVG
+        closed_df = df_analyzed.iloc[:-1]
+        recent_df = closed_df.tail(15)
+        
+        paired_setup = None
+        fvg_row_idx = -1
+        bos_row_idx = -1
+        
+        for i in range(len(recent_df)):
+            row = recent_df.iloc[i]
+            if not row.get('fvg_active', False):
+                continue
+                
+            fvg_time = str(row['timestamp'])
+            if fvg_time in self.used_fvg_times[symbol]:
+                continue
+                
+            if row.get('fvg_stale', False):
+                continue
+                
+            direction = 'LONG' if row['fvg_type'] == 'BULLISH' else 'SHORT'
+            
+            # Look +/- 3 candles for a BOS in the same direction
+            start_j = max(0, i - 3)
+            end_j = min(len(recent_df) - 1, i + 3)
+            
+            bos_found = False
+            for j in range(start_j, end_j + 1):
+                bos_row = recent_df.iloc[j]
+                bos_dir = bos_row.get('bos_direction', 'NONE')
+                if (direction == 'LONG' and bos_dir == 'BULLISH') or (direction == 'SHORT' and bos_dir == 'BEARISH'):
+                    bos_found = True
+                    bos_row_idx = j
+                    break
+                    
+            if bos_found:
+                paired_setup = row
+                fvg_row_idx = i
+                break
+                
+        if paired_setup is not None:
+            fvg_ts = str(paired_setup['timestamp'])
+            bos_ts = str(recent_df.iloc[bos_row_idx]['timestamp'])
+            distance = abs(fvg_row_idx - bos_row_idx)
+            
+            logger.info(f"[{symbol}] PAIRED MATCH FOUND! FVG at {fvg_ts} matched with BOS at {bos_ts} (Distance: {distance} candles)")
+            diagnostics.increment(symbol, "bos_and_fvg_overlap_found")
+            self.used_fvg_times[symbol].add(fvg_ts)
+            
+            # Merge necessary flags to the FVG row so evaluate_new_setup can read them properly
+            merged_setup = paired_setup.copy()
+            merged_setup['bos_direction'] = recent_df.iloc[bos_row_idx]['bos_direction']
+            
+            # Use most recent swing levels to ensure accurate stops
+            if bos_row_idx > fvg_row_idx:
+                merged_setup['last_swing_low_price'] = recent_df.iloc[bos_row_idx]['last_swing_low_price']
+                merged_setup['last_swing_high_price'] = recent_df.iloc[bos_row_idx]['last_swing_high_price']
+                
+            diagnostics.increment(symbol, "setup_creation_attempted")
+            self.evaluate_new_setup(symbol, merged_setup, df_1m, df_5m)
         
     async def periodic_reporting(self):
         while True:
@@ -130,7 +206,7 @@ class TradingBot:
         if symbol in self.active_setups:
             return
             
-        if self.symbol_cooldowns[symbol] and datetime.utcnow() < self.symbol_cooldowns[symbol]:
+        if self.symbol_cooldowns[symbol] and datetime.now(timezone.utc) < self.symbol_cooldowns[symbol]:
             return
             
         open_count = self.db.query(DBTrade).filter(DBTrade.status.in_(["ENTERED", "PARTIAL_TP1"])).count()
@@ -165,11 +241,13 @@ class TradingBot:
                 
         # Calculate TPs
         if direction == 'LONG':
-            tp1 = entry_price + (entry_price - stop) * settings.min_rr
-            tp2 = entry_price + (entry_price - stop) * settings.tp2_rr
+            risk = entry_price - stop
+            tp1 = entry_price + risk * settings.min_rr
+            tp2 = entry_price + risk * settings.tp2_rr
         else:
-            tp1 = entry_price - (stop - entry_price) * settings.min_rr
-            tp2 = entry_price - (stop - entry_price) * settings.tp2_rr
+            risk = stop - entry_price
+            tp1 = entry_price - risk * settings.min_rr
+            tp2 = entry_price - risk * settings.tp2_rr
             
         htf_trend = self.analyzer.get_htf_trend(df_1m)
         
@@ -204,17 +282,17 @@ class TradingBot:
             logger.error(f"Critical error generating TradeSetupPayload for {symbol}: {e}", exc_info=True)
             return
             
-        self.process_signal(payload, fvg_time)
+        self.process_signal(payload, fvg_time, latest.get('ATR', 0))
         
-    def process_signal(self, payload: TradeSetupPayload, fvg_time: str):
+    def process_signal(self, payload: TradeSetupPayload, fvg_time: str, current_atr: float = 0.0):
         trade_data = payload.model_dump(exclude={
             "fvg_atr_mult", "displacement_atr_mult", "active_session", 
-            "liquidity_sweep", "be_enabled", "trail_enabled"
+            "liquidity_sweep", "be_enabled", "trail_enabled", "fvg_stale"
         })
         trade_data["rr_to_tp1"] = payload.rr_to_tp1
         trade_data["rr_to_tp2"] = payload.rr_to_tp2
         trade_data["stop_distance"] = payload.stop_distance
-        now_utc = datetime.utcnow()
+        now_utc = datetime.now(timezone.utc)
         trade_data["detected_at"] = now_utc
         trade_data["fvg_time"] = fvg_time
         
@@ -234,13 +312,15 @@ class TradingBot:
         logger.info(f"\n+++ Setup Identified: {payload.direction} @ {payload.entry} (SL: {payload.stop}) +++")
         logger.info(f"Setup {db_trade.id} WAITING_FOR_RETRACE on {payload.symbol}")
         
-        diagnostics.log_waiting_for_retrace(payload, db_trade.id, now_utc)
+        tolerance_buffer = current_atr * settings.entry_tolerance_atr
+        diagnostics.log_waiting_for_retrace(payload, db_trade.id, now_utc, tolerance_buffer)
         
         self.active_setups[payload.symbol] = {
             'payload': payload,
             'db_id': db_trade.id,
             'detected_time': now_utc,
-            'fvg_time': fvg_time
+            'fvg_time': fvg_time,
+            'zone_touched': False
         }
         self.last_fvg_time[payload.symbol] = fvg_time
 
@@ -252,6 +332,22 @@ class TradingBot:
         latest = df_1m.iloc[-1]
         payload: TradeSetupPayload = setup['payload']
         db_id = setup['db_id']
+        
+        # Determine exact missed distance across entire setup lifetime
+        setup_time_utc = pd.to_datetime(setup['detected_time'], utc=True)
+        recent_df = df_1m[df_1m['timestamp'] > setup_time_utc]
+        if recent_df.empty:
+            recent_df = df_1m.tail(1)
+            
+        if payload.direction == "LONG":
+            min_price = recent_df['low'].min()
+            missed_by = min_price - payload.entry
+        else:
+            max_price = recent_df['high'].max()
+            missed_by = payload.entry - max_price
+            
+        atr = latest.get('ATR', 0)
+        missed_by_atr = abs(missed_by) / atr if atr > 0 else 0
         
         # 1. Cancel if FVG is stale (close violates fvg bounds)
         fvg_stale = False
@@ -269,14 +365,24 @@ class TradingBot:
             
         if fvg_stale or extended:
             reason = "Stale FVG" if fvg_stale else "Price ran to TP1 before entry"
-            self.cancel_setup(symbol, db_id, reason)
+            self.cancel_setup(symbol, db_id, reason, "CANCELLED", "UNKNOWN", setup['detected_time'], abs(missed_by), missed_by_atr)
             return
             
         # 2. Check for entry
+        buffer = atr * settings.entry_tolerance_atr
+        
+        if not setup.get('zone_touched', False):
+            if payload.direction == "LONG" and latest['low'] <= payload.fvg_top:
+                setup['zone_touched'] = True
+                logger.info(f"[{symbol}] Price ENTERED the FVG zone for Setup {db_id}. Missed entry line by {(latest['low'] - payload.entry):.2f} pts at this tick.")
+            elif payload.direction == "SHORT" and latest['high'] >= payload.fvg_bottom:
+                setup['zone_touched'] = True
+                logger.info(f"[{symbol}] Price ENTERED the FVG zone for Setup {db_id}. Missed entry line by {(payload.entry - latest['high']):.2f} pts at this tick.")
+                
         hit_entry = False
-        if payload.direction == "LONG" and latest['low'] <= payload.entry:
+        if payload.direction == "LONG" and latest['low'] <= (payload.entry + buffer):
             hit_entry = True
-        elif payload.direction == "SHORT" and latest['high'] >= payload.entry:
+        elif payload.direction == "SHORT" and latest['high'] >= (payload.entry - buffer):
             hit_entry = True
             
         if hit_entry:
@@ -297,7 +403,22 @@ class TradingBot:
             # 2. Setup Sizing & Risk rules
             db_trade = self.db.query(DBTrade).filter(DBTrade.id == db_id).first()
             daily_losses = get_daily_losses(self.db)
-            risk_passed, risk_reason, risk_details = evaluate_risk(payload, daily_losses)
+            
+            logger.info(f"--- SETUP AUDIT FOR {symbol} ---")
+            logger.info(f"  Direction: {payload.direction} | Mode: {payload.entry_zone}")
+            logger.info(f"  Prices  -> Entry: {payload.entry:.2f} | Stop: {payload.stop:.2f} | TP1: {payload.tp1:.2f} | TP2: {payload.tp2:.2f}")
+            logger.info(f"  Risk    -> min_rr: {settings.min_rr} | payload_rr1: {payload.rr_to_tp1:.2f} | payload_rr2: {payload.rr_to_tp2:.2f}")
+            logger.info(f"  Filters -> BOS: {payload.bos_direction} (Disp. ATR: {payload.displacement_atr_mult:.2f})")
+            logger.info(f"            FVG ATR Box: {payload.fvg_atr_mult:.2f} | Session: {payload.active_session} | HTF: {payload.htf_trend}")
+            logger.info(f"            Vol: {payload.volume_ratio:.2f} | Chop: {payload.chop_flag} | Stale: {payload.fvg_stale}")
+            logger.info(f"--------------------------------")
+            
+            try:
+                risk_passed, risk_reason, risk_details = evaluate_risk(payload, daily_losses)
+            except Exception as e:
+                logger.error(f"Crash during evaluate_risk for {symbol}: {e}")
+                self.cancel_setup(symbol, db_id, f"Risk Engine Exception: {e}", "REJECTED", "RISK")
+                return
             
             if not risk_passed:
                 self.cancel_setup(symbol, db_id, f"Risk/Sizing: {risk_reason}", "REJECTED", "RISK")
@@ -316,7 +437,7 @@ class TradingBot:
                 
             logger.info(f"Setup {db_id} ENTERED on {symbol}!")
             db_trade.status = "ENTERED"
-            db_trade.entered_at = datetime.utcnow()
+            db_trade.entered_at = datetime.now(timezone.utc)
             db_trade.units = risk_details["units_to_buy"]
             db_trade.ai_action = ai_result.action
             db_trade.ai_grade = ai_result.grade
@@ -339,28 +460,11 @@ class TradingBot:
         # 3. Check for expiry timeout
         # timeframe is 5m, so 8 bars * 5 mins = 40 mins
         max_mins = settings.max_bars_to_retrace * 5
-        mins_elapsed = (datetime.utcnow() - setup['detected_time']).total_seconds() / 60
+        mins_elapsed = (datetime.now(timezone.utc) - setup['detected_time']).total_seconds() / 60
         
         if mins_elapsed > max_mins:
-            # Calculate distance missed
-            setup_time_utc = pd.to_datetime(setup['detected_time'], utc=True)
-            recent_df = df_1m[df_1m['timestamp'] > setup_time_utc]
-            
-            if recent_df.empty:
-                recent_df = df_1m.tail(1)
-                
-            if payload.direction == "LONG":
-                min_price = recent_df['low'].min()
-                missed_by = min_price - payload.entry
-            else:
-                max_price = recent_df['high'].max()
-                missed_by = payload.entry - max_price
-                
-            atr = latest.get('ATR', 0)
-            missed_by_atr = abs(missed_by) / atr if atr > 0 else 0
-            
             diagnostics.log_expired(symbol, setup['detected_time'], "Timeout - Failed to retrace in time", abs(missed_by), missed_by_atr)
-            self.cancel_setup(symbol, db_id, "Timeout - Failed to retrace in time", "EXPIRED")
+            self.cancel_setup(symbol, db_id, "Timeout - Failed to retrace in time", "EXPIRED", "UNKNOWN", setup['detected_time'], abs(missed_by), missed_by_atr)
 
     async def manage_open_trades(self, symbol: str, current_price: float, current_high: float, current_low: float):
         """Monitors ENTERED trades for proper Stage 4 Exits (Partials, BE, TP2, Early Exit)."""
@@ -389,7 +493,7 @@ class TradingBot:
                     t.status = "STOPPED"
                     logger.info(f"Trade {t.id} STOPPED (Direction: {t.direction})")
                 
-                t.closed_at = datetime.utcnow()
+                t.closed_at = datetime.now(timezone.utc)
                 self.db.commit()
                 self.executor.close_position(t.symbol, t.direction, t.units if t.status == "STOPPED" else t.units / 2.0, "STOP/BE")
                 self.apply_cooldown(t.symbol, minutes=15)
@@ -399,7 +503,7 @@ class TradingBot:
             if early_exit:
                 t.status = "STOPPED"
                 t.reason = "Early Invalidation Post-Entry"
-                t.closed_at = datetime.utcnow()
+                t.closed_at = datetime.now(timezone.utc)
                 logger.info(f"Trade {t.id} STOPPED via Early Invalidation (Direction: {t.direction})")
                 self.db.commit()
                 self.executor.close_position(t.symbol, t.direction, t.units, "EARLY_INVALIDATION")
@@ -426,7 +530,7 @@ class TradingBot:
                 if (t.direction == "LONG" and current_high >= t.tp2) or \
                    (t.direction == "SHORT" and current_low <= t.tp2):
                     t.status = "TP2_HIT"
-                    t.closed_at = datetime.utcnow()
+                    t.closed_at = datetime.now(timezone.utc)
                     self.db.commit()
                     logger.info(f"Trade {t.id} fully completed at TP2! (Direction: {t.direction})")
                     self.executor.close_position(t.symbol, t.direction, t.units / 2.0, "TP2")

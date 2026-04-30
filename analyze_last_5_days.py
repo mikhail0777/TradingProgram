@@ -55,8 +55,21 @@ def run_historical_diagnostics():
             direction = 'LONG' if valid_bos == 'BULLISH' else 'SHORT'
             stop = row['last_swing_low_price'] - settings.stop_buffer_atr * row.get('ATR', 0) if direction == 'LONG' else row['last_swing_high_price'] + settings.stop_buffer_atr * row.get('ATR', 0)
             
-            # Simple midpoint entry for test
-            entry_price = row['fvg_bottom'] + (row['fvg_top'] - row['fvg_bottom']) * 0.5
+            mode = settings.entry_mode
+            if direction == 'LONG':
+                if mode == 'FVG_TOP':
+                    entry_price = row['fvg_top']
+                elif mode == 'FULL_ZONE_TOUCH':
+                    entry_price = row['fvg_bottom']
+                else: # MIDPOINT
+                    entry_price = row['fvg_bottom'] + (row['fvg_top'] - row['fvg_bottom']) * 0.5
+            else:
+                if mode == 'FVG_TOP': # Technically bottom for bearish
+                    entry_price = row['fvg_bottom']
+                elif mode == 'FULL_ZONE_TOUCH':
+                    entry_price = row['fvg_top']
+                else:
+                    entry_price = row['fvg_bottom'] + (row['fvg_top'] - row['fvg_bottom']) * 0.5
             
             try:
                 payload = TradeSetupPayload(
@@ -75,7 +88,7 @@ def run_historical_diagnostics():
                     active_session="MOCK",
                     htf_trend=analyzer.get_htf_trend(df_1m),
                     liquidity_sweep=False,
-                    entry_zone="MIDPOINT",
+                    entry_zone=mode,
                     chop_flag=bool(row.get('chop_flag', False)),
                     volume_ratio=row.get('volume_ratio', 1.0),
                     fvg_stale=bool(row.get('fvg_stale', False))

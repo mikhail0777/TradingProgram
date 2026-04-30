@@ -23,8 +23,8 @@ def evaluate_strategy(payload: TradeSetupPayload) -> tuple[bool, str]:
         return False, "Rejected: Entry must occur inside the FVG retracement zone."
 
     # 2. Momentum / Displacement Check
-    if payload.displacement_atr_mult < 1.0:
-        return False, f"Rejected: Weak displacement ({payload.displacement_atr_mult}x ATR, needs >= 1.0)."
+    if payload.displacement_atr_mult < settings.displacement_atr_threshold:
+        return False, f"Rejected: Weak displacement ({payload.displacement_atr_mult}x ATR, needs >= {settings.displacement_atr_threshold})."
 
     # 3. Market State Filters (Phase 2 additions)
     # Check chop flag

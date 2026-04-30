@@ -22,8 +22,8 @@ def evaluate_risk(payload: TradeSetupPayload, current_daily_losses: int) -> tupl
         return False, "Rejected: Stop distance cannot be zero.", empty_details
 
     # 3. RR Validation
-    if payload.rr < settings.min_rr:
-        return False, f"Rejected: Conservative RR to TP1 too low ({payload.rr} < {settings.min_rr}).", empty_details
+    if payload.rr_to_tp1 < settings.min_rr:
+        return False, f"Rejected: Conservative RR to TP1 too low ({payload.rr_to_tp1:.2f} < {settings.min_rr}).", empty_details
         
     # 4. Position Sizing
     # Max risk in USD based on account balance
