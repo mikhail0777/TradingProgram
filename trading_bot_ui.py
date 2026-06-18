@@ -46,7 +46,7 @@ try:
     from models import TradeSetupPayload, AIReviewResult
     from risk_engine import evaluate_risk
     from ai_review import run_ai_review
-    from db import get_db, DBTrade
+    from db import get_db, DBTrade, init_db
 except Exception as exc:
     raise RuntimeError(
         "Failed to import TradingProgram modules. Place this file in the same "
@@ -252,44 +252,54 @@ def load_recent_trades(limit: int = 50, tz: ZoneInfo | None = None) -> pd.DataFr
     """Loads recent trades from the SQLite database.
 
     Returns a DataFrame sorted by descending timestamp.  If the DB is
-    empty, returns an empty DataFrame.
+    empty, returns an empty DataFrame. Handles database errors gracefully.
     """
-    with next(get_db()) as db:
-        results = db.query(DBTrade).order_by(DBTrade.timestamp.desc()).limit(limit).all()
-    if not results:
+    try:
+        with next(get_db()) as db:
+            results = db.query(DBTrade).order_by(DBTrade.timestamp.desc()).limit(limit).all()
+        if not results:
+            return pd.DataFrame()
+        rows = []
+        for trade in results:
+            ts = trade.timestamp
+            # Localise the timestamp if a timezone is provided.  If the stored
+            # timestamp is naive (no tzinfo), assume it is in UTC before converting.
+            if tz is not None and hasattr(ts, 'astimezone'):
+                try:
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=ZoneInfo('UTC'))
+                    ts = ts.astimezone(tz)
+                except Exception:
+                    pass
+            rows.append({
+                'id': trade.id,
+                'timestamp': ts,
+                'symbol': trade.symbol,
+                'direction': trade.direction,
+                'entry': trade.entry,
+                'stop': trade.stop,
+                'tp1': trade.tp1,
+                'tp2': trade.tp2,
+                'rr_tp1': trade.rr_to_tp1,
+                'rr_tp2': trade.rr_to_tp2,
+                'status': trade.status,
+                'reason': trade.reason,
+                'ai_action': trade.ai_action,
+                'ai_grade': trade.ai_grade
+            })
+        return pd.DataFrame(rows)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Database query failed: {e}. Running UI in standalone demo mode.")
         return pd.DataFrame()
-    rows = []
-    for trade in results:
-        ts = trade.timestamp
-        # Localise the timestamp if a timezone is provided.  If the stored
-        # timestamp is naive (no tzinfo), assume it is in UTC before converting.
-        if tz is not None and hasattr(ts, 'astimezone'):
-            try:
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=ZoneInfo('UTC'))
-                ts = ts.astimezone(tz)
-            except Exception:
-                pass
-        rows.append({
-            'id': trade.id,
-            'timestamp': ts,
-            'symbol': trade.symbol,
-            'direction': trade.direction,
-            'entry': trade.entry,
-            'stop': trade.stop,
-            'tp1': trade.tp1,
-            'tp2': trade.tp2,
-            'rr_tp1': trade.rr_to_tp1,
-            'rr_tp2': trade.rr_to_tp2,
-            'status': trade.status,
-            'reason': trade.reason,
-            'ai_action': trade.ai_action,
-            'ai_grade': trade.ai_grade
-        })
-    return pd.DataFrame(rows)
 
 
 def main() -> None:
+    try:
+        init_db()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Database initialization failed: {e}. Running UI in standalone demo mode.")
     st.set_page_config(page_title="Trading Bot Dashboard", layout="wide")
     # A cleaner title without emojis
     st.title("BOS & FVG Trading Dashboard")

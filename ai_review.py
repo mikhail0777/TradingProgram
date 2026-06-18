@@ -10,14 +10,14 @@ def mock_ai_review(payload: TradeSetupPayload) -> AIReviewResult:
     hash_val = int(hashlib.md5(setup_str.encode()).hexdigest(), 16) % 100
     
     # Simulate some logic based on rr and strategy inputs
-    if payload.rr >= 3.0 and hash_val > 10:
+    if payload.rr_to_tp1 >= 3.0 and hash_val > 10:
         return AIReviewResult(
             action="TAKE",
             grade="A",
             confidence=90 + (hash_val % 10),
             reasons=["High R:R ratio to TP1", "Strong structural bias", "Clear invalidation point in FVG"]
         )
-    elif payload.rr >= 2.0:
+    elif payload.rr_to_tp1 >= 2.0:
         if hash_val > 40:
             return AIReviewResult(
                 action="TAKE",
@@ -57,7 +57,7 @@ def real_ai_review(payload: TradeSetupPayload) -> AIReviewResult:
     - Setup Session: {payload.active_session}
     - HTF Trend: {payload.htf_trend}
     - Displacement: {payload.displacement_atr_mult}x ATR.
-    - Risk/Reward to TP1: {payload.rr}
+    - Risk/Reward to TP1: {payload.rr_to_tp1}
     
     Evaluate the strength of this setup. Respond in strict JSON format mapping to this schema:
     {{
