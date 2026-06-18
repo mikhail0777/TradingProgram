@@ -191,13 +191,21 @@ def generate_trade_candidates(df_analyzed: pd.DataFrame) -> List[dict]:
     return candidates
 
 
-def plot_candles_with_fvg(df: pd.DataFrame) -> go.Figure:
+def plot_candles_with_fvg(df: pd.DataFrame, tz=None) -> go.Figure:
     """Produces a candlestick chart with shaded FVG zones.
 
     FVG regions are highlighted as semi-transparent rectangles.  BOS
     signals are annotated with arrows.  Only fully formed FVGs
     (fvg_active==True) are drawn.
     """
+    if tz is not None and not df.empty:
+        df = df.copy()
+        if hasattr(df['timestamp'].dt, 'tz_convert'):
+            try:
+                df['timestamp'] = df['timestamp'].dt.tz_convert(tz)
+            except TypeError:
+                df['timestamp'] = df['timestamp'].dt.tz_localize('UTC').dt.tz_convert(tz)
+
     fig = go.Figure()
     fig.add_trace(go.Candlestick(
         x=df['timestamp'],
@@ -370,7 +378,7 @@ def main() -> None:
         candidates: List[dict] = st.session_state.get('candidates', [])
         st.subheader(f"Technical Analysis for {symbol}")
         # Chart
-        fig = plot_candles_with_fvg(df_analyzed)
+        fig = plot_candles_with_fvg(df_analyzed, tz=local_tz)
         st.plotly_chart(fig, use_container_width=True)
         # Candidate setups
         if candidates:

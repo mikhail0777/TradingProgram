@@ -14926,3 +14926,5 @@
 2026-06-18 01:42:57,812 -   Raw BOS: 5 -> Valid BOS: 0 -> Raw FVG: 0 -> Valid FVG: 0 -> Overlap: 3 -> Attempted: 3 -> Waiting: 0 -> Entered: 0
 2026-06-18 01:42:57,812 - ==================================================
 
+2026-06-18 14:00:11,924 - [AAPL] REJECTED (STRATEGY): Rejected: Weak relative volume (0.49x average).
+2026-06-18 14:01:15,706 - [AAPL] REJECTED (STRATEGY): Rejected: Weak relative volume (0.49x average).
