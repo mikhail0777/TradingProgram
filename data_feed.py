@@ -1,6 +1,5 @@
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
 import logging
 import time
 
@@ -80,6 +79,13 @@ class MarketDataFeed:
             df['ATR'] = 0.0
             return df
         
-        df['ATR'] = ta.atr(df['high'], df['low'], df['close'], length=length)
+        high_low = df['high'] - df['low']
+        high_close = (df['high'] - df['close'].shift(1)).abs()
+        low_close = (df['low'] - df['close'].shift(1)).abs()
+        ranges = pd.concat([high_low, high_close, low_close], axis=1)
+        true_range = ranges.max(axis=1)
+        
+        # Calculate Wilder's smoothed ATR using an exponential moving average
+        df['ATR'] = true_range.ewm(alpha=1/length, min_periods=length, adjust=False).mean()
         df['ATR'] = df['ATR'].fillna(0.0)
         return df
