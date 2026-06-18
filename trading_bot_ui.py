@@ -46,7 +46,7 @@ try:
     from models import TradeSetupPayload, AIReviewResult
     from risk_engine import evaluate_risk
     from ai_review import run_ai_review
-    from db import get_db, DBTrade
+    from db import get_db, DBTrade, init_db
 except Exception as exc:
     raise RuntimeError(
         "Failed to import TradingProgram modules. Place this file in the same "
@@ -290,6 +290,7 @@ def load_recent_trades(limit: int = 50, tz: ZoneInfo | None = None) -> pd.DataFr
 
 
 def main() -> None:
+    init_db()
     st.set_page_config(page_title="Trading Bot Dashboard", layout="wide")
     # A cleaner title without emojis
     st.title("BOS & FVG Trading Dashboard")
