@@ -10,3 +10,6 @@ openai
 yfinance
 alpaca-py
 alpha_vantage
+streamlit
+plotly
+pytz
