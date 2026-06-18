@@ -14557,3 +14557,372 @@
 2026-04-09 20:37:11,895 -   Raw BOS: 3 -> Valid BOS: 0 -> Raw FVG: 7 -> Valid FVG: 1 -> Overlap: 12 -> Attempted: 12 -> Waiting: 0 -> Entered: 0
 2026-04-09 20:37:11,895 - ==================================================
 
+2026-06-18 01:12:57,140 - [NVDA] REJECTED (STRATEGY): Rejected: Setup occurred outside active US Equities sessions.
+2026-06-18 01:12:57,393 - [TSLA] REJECTED (STRATEGY): Rejected: Setup occurred outside active US Equities sessions.
+2026-06-18 01:12:57,738 - [AMZN] REJECTED (STRATEGY): Rejected: Setup occurred outside active US Equities sessions.
+2026-06-18 01:27:57,752 - 
+==================================================
+2026-06-18 01:27:57,752 - === PERIODIC SUMMARY === (Uptime: 0:15:03.286368)
+2026-06-18 01:27:57,753 - 
+--- AAPL ---
+2026-06-18 01:27:57,753 -   candles_processed: 1
+2026-06-18 01:27:57,754 -   bos_candidates_found: 0
+2026-06-18 01:27:57,754 -   valid_bos_found: 0
+2026-06-18 01:27:57,754 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,754 -   valid_fvg_found: 0
+2026-06-18 01:27:57,754 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:27:57,755 -   setup_creation_attempted: 0
+2026-06-18 01:27:57,755 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,755 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,755 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,755 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,755 -   setups_rejected_session: 0
+2026-06-18 01:27:57,755 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,756 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,756 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,756 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,756 -   setups_expired: 0
+2026-06-18 01:27:57,756 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,756 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,757 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,757 -   entries_triggered: 0
+2026-06-18 01:27:57,757 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,757 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,757 - 
+--- AMZN ---
+2026-06-18 01:27:57,757 -   candles_processed: 1
+2026-06-18 01:27:57,757 -   bos_candidates_found: 1
+2026-06-18 01:27:57,757 -   valid_bos_found: 0
+2026-06-18 01:27:57,758 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,758 -   valid_fvg_found: 0
+2026-06-18 01:27:57,758 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:27:57,758 -   setup_creation_attempted: 1
+2026-06-18 01:27:57,758 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,758 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,758 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,758 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,758 -   setups_rejected_session: 1
+2026-06-18 01:27:57,759 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,759 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,759 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,759 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,759 -   setups_expired: 0
+2026-06-18 01:27:57,759 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,759 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,760 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,760 -   entries_triggered: 0
+2026-06-18 01:27:57,760 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,760 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,760 - 
+--- NVDA ---
+2026-06-18 01:27:57,760 -   candles_processed: 1
+2026-06-18 01:27:57,761 -   bos_candidates_found: 1
+2026-06-18 01:27:57,761 -   valid_bos_found: 0
+2026-06-18 01:27:57,761 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,761 -   valid_fvg_found: 0
+2026-06-18 01:27:57,761 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:27:57,761 -   setup_creation_attempted: 1
+2026-06-18 01:27:57,761 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,761 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,761 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,761 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,761 -   setups_rejected_session: 1
+2026-06-18 01:27:57,761 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,762 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,762 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,762 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,762 -   setups_expired: 0
+2026-06-18 01:27:57,762 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,762 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,762 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,762 -   entries_triggered: 0
+2026-06-18 01:27:57,763 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,763 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,763 - 
+--- QQQ ---
+2026-06-18 01:27:57,763 -   candles_processed: 1
+2026-06-18 01:27:57,763 -   bos_candidates_found: 1
+2026-06-18 01:27:57,763 -   valid_bos_found: 0
+2026-06-18 01:27:57,763 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,763 -   valid_fvg_found: 0
+2026-06-18 01:27:57,763 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:27:57,764 -   setup_creation_attempted: 0
+2026-06-18 01:27:57,764 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,764 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,764 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,764 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,764 -   setups_rejected_session: 0
+2026-06-18 01:27:57,764 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,765 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,765 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,765 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,765 -   setups_expired: 0
+2026-06-18 01:27:57,765 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,765 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,765 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,765 -   entries_triggered: 0
+2026-06-18 01:27:57,765 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,765 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,766 - 
+--- SPY ---
+2026-06-18 01:27:57,766 -   candles_processed: 1
+2026-06-18 01:27:57,766 -   bos_candidates_found: 1
+2026-06-18 01:27:57,766 -   valid_bos_found: 0
+2026-06-18 01:27:57,766 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,766 -   valid_fvg_found: 0
+2026-06-18 01:27:57,766 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:27:57,767 -   setup_creation_attempted: 0
+2026-06-18 01:27:57,767 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,767 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,767 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,767 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,767 -   setups_rejected_session: 0
+2026-06-18 01:27:57,767 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,767 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,767 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,768 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,768 -   setups_expired: 0
+2026-06-18 01:27:57,768 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,768 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,768 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,768 -   entries_triggered: 0
+2026-06-18 01:27:57,768 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,768 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,769 - 
+--- TSLA ---
+2026-06-18 01:27:57,769 -   candles_processed: 1
+2026-06-18 01:27:57,769 -   bos_candidates_found: 1
+2026-06-18 01:27:57,769 -   valid_bos_found: 0
+2026-06-18 01:27:57,769 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,769 -   valid_fvg_found: 0
+2026-06-18 01:27:57,769 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:27:57,770 -   setup_creation_attempted: 1
+2026-06-18 01:27:57,770 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,770 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,770 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,770 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,770 -   setups_rejected_session: 1
+2026-06-18 01:27:57,770 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,770 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,771 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,771 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,771 -   setups_expired: 0
+2026-06-18 01:27:57,771 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,771 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,771 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,771 -   entries_triggered: 0
+2026-06-18 01:27:57,772 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,772 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,772 - 
+--- OVERALL TOTALS ---
+2026-06-18 01:27:57,772 -   candles_processed: 6
+2026-06-18 01:27:57,772 -   bos_candidates_found: 5
+2026-06-18 01:27:57,772 -   valid_bos_found: 0
+2026-06-18 01:27:57,773 -   fvg_candidates_found: 0
+2026-06-18 01:27:57,773 -   valid_fvg_found: 0
+2026-06-18 01:27:57,773 -   bos_and_fvg_overlap_found: 3
+2026-06-18 01:27:57,773 -   setup_creation_attempted: 3
+2026-06-18 01:27:57,773 -   setup_creation_skipped_reason: 0
+2026-06-18 01:27:57,773 -   setups_rejected_chop: 0
+2026-06-18 01:27:57,773 -   setups_rejected_volume: 0
+2026-06-18 01:27:57,773 -   setups_rejected_htf: 0
+2026-06-18 01:27:57,774 -   setups_rejected_session: 3
+2026-06-18 01:27:57,774 -   setups_rejected_stale: 0
+2026-06-18 01:27:57,774 -   setups_rejected_displacement: 0
+2026-06-18 01:27:57,774 -   strategy_rejected_other: 0
+2026-06-18 01:27:57,774 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:27:57,774 -   setups_expired: 0
+2026-06-18 01:27:57,774 -   setups_cancelled_stale: 0
+2026-06-18 01:27:57,774 -   setups_cancelled_tp1: 0
+2026-06-18 01:27:57,775 -   setups_cancelled_other: 0
+2026-06-18 01:27:57,775 -   entries_triggered: 0
+2026-06-18 01:27:57,775 -   trades_rejected_risk: 0
+2026-06-18 01:27:57,775 -   trades_rejected_ai: 0
+2026-06-18 01:27:57,775 - 
+--- FUNNEL ANALYSIS (OVERALL) ---
+2026-06-18 01:27:57,775 -   Raw BOS: 5 -> Valid BOS: 0 -> Raw FVG: 0 -> Valid FVG: 0 -> Overlap: 3 -> Attempted: 3 -> Waiting: 0 -> Entered: 0
+2026-06-18 01:27:57,775 - ==================================================
+
+2026-06-18 01:42:57,785 - 
+==================================================
+2026-06-18 01:42:57,785 - === PERIODIC SUMMARY === (Uptime: 0:30:03.319012)
+2026-06-18 01:42:57,786 - 
+--- AAPL ---
+2026-06-18 01:42:57,786 -   candles_processed: 1
+2026-06-18 01:42:57,786 -   bos_candidates_found: 0
+2026-06-18 01:42:57,786 -   valid_bos_found: 0
+2026-06-18 01:42:57,787 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,787 -   valid_fvg_found: 0
+2026-06-18 01:42:57,787 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:42:57,787 -   setup_creation_attempted: 0
+2026-06-18 01:42:57,787 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,787 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,788 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,788 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,788 -   setups_rejected_session: 0
+2026-06-18 01:42:57,788 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,788 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,788 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,788 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,788 -   setups_expired: 0
+2026-06-18 01:42:57,788 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,788 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,788 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,789 -   entries_triggered: 0
+2026-06-18 01:42:57,789 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,789 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,789 - 
+--- AMZN ---
+2026-06-18 01:42:57,789 -   candles_processed: 1
+2026-06-18 01:42:57,789 -   bos_candidates_found: 1
+2026-06-18 01:42:57,790 -   valid_bos_found: 0
+2026-06-18 01:42:57,790 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,790 -   valid_fvg_found: 0
+2026-06-18 01:42:57,790 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:42:57,790 -   setup_creation_attempted: 1
+2026-06-18 01:42:57,790 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,790 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,790 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,790 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,791 -   setups_rejected_session: 1
+2026-06-18 01:42:57,791 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,791 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,791 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,791 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,791 -   setups_expired: 0
+2026-06-18 01:42:57,792 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,792 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,792 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,792 -   entries_triggered: 0
+2026-06-18 01:42:57,792 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,792 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,793 - 
+--- NVDA ---
+2026-06-18 01:42:57,793 -   candles_processed: 1
+2026-06-18 01:42:57,793 -   bos_candidates_found: 1
+2026-06-18 01:42:57,794 -   valid_bos_found: 0
+2026-06-18 01:42:57,794 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,794 -   valid_fvg_found: 0
+2026-06-18 01:42:57,795 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:42:57,795 -   setup_creation_attempted: 1
+2026-06-18 01:42:57,795 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,796 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,796 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,796 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,797 -   setups_rejected_session: 1
+2026-06-18 01:42:57,797 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,798 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,798 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,798 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,798 -   setups_expired: 0
+2026-06-18 01:42:57,798 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,798 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,799 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,799 -   entries_triggered: 0
+2026-06-18 01:42:57,799 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,799 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,799 - 
+--- QQQ ---
+2026-06-18 01:42:57,799 -   candles_processed: 1
+2026-06-18 01:42:57,799 -   bos_candidates_found: 1
+2026-06-18 01:42:57,800 -   valid_bos_found: 0
+2026-06-18 01:42:57,800 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,800 -   valid_fvg_found: 0
+2026-06-18 01:42:57,800 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:42:57,800 -   setup_creation_attempted: 0
+2026-06-18 01:42:57,800 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,800 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,801 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,801 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,801 -   setups_rejected_session: 0
+2026-06-18 01:42:57,801 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,801 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,801 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,802 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,802 -   setups_expired: 0
+2026-06-18 01:42:57,802 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,802 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,802 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,802 -   entries_triggered: 0
+2026-06-18 01:42:57,802 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,803 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,803 - 
+--- SPY ---
+2026-06-18 01:42:57,803 -   candles_processed: 1
+2026-06-18 01:42:57,803 -   bos_candidates_found: 1
+2026-06-18 01:42:57,803 -   valid_bos_found: 0
+2026-06-18 01:42:57,803 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,803 -   valid_fvg_found: 0
+2026-06-18 01:42:57,803 -   bos_and_fvg_overlap_found: 0
+2026-06-18 01:42:57,804 -   setup_creation_attempted: 0
+2026-06-18 01:42:57,804 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,804 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,804 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,804 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,804 -   setups_rejected_session: 0
+2026-06-18 01:42:57,804 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,804 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,804 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,804 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,804 -   setups_expired: 0
+2026-06-18 01:42:57,804 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,805 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,805 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,805 -   entries_triggered: 0
+2026-06-18 01:42:57,805 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,805 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,805 - 
+--- TSLA ---
+2026-06-18 01:42:57,805 -   candles_processed: 1
+2026-06-18 01:42:57,805 -   bos_candidates_found: 1
+2026-06-18 01:42:57,806 -   valid_bos_found: 0
+2026-06-18 01:42:57,806 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,806 -   valid_fvg_found: 0
+2026-06-18 01:42:57,806 -   bos_and_fvg_overlap_found: 1
+2026-06-18 01:42:57,806 -   setup_creation_attempted: 1
+2026-06-18 01:42:57,806 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,806 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,806 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,807 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,807 -   setups_rejected_session: 1
+2026-06-18 01:42:57,807 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,807 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,807 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,807 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,807 -   setups_expired: 0
+2026-06-18 01:42:57,808 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,808 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,808 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,808 -   entries_triggered: 0
+2026-06-18 01:42:57,808 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,808 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,808 - 
+--- OVERALL TOTALS ---
+2026-06-18 01:42:57,808 -   candles_processed: 6
+2026-06-18 01:42:57,809 -   bos_candidates_found: 5
+2026-06-18 01:42:57,809 -   valid_bos_found: 0
+2026-06-18 01:42:57,809 -   fvg_candidates_found: 0
+2026-06-18 01:42:57,809 -   valid_fvg_found: 0
+2026-06-18 01:42:57,809 -   bos_and_fvg_overlap_found: 3
+2026-06-18 01:42:57,809 -   setup_creation_attempted: 3
+2026-06-18 01:42:57,809 -   setup_creation_skipped_reason: 0
+2026-06-18 01:42:57,810 -   setups_rejected_chop: 0
+2026-06-18 01:42:57,810 -   setups_rejected_volume: 0
+2026-06-18 01:42:57,810 -   setups_rejected_htf: 0
+2026-06-18 01:42:57,810 -   setups_rejected_session: 3
+2026-06-18 01:42:57,810 -   setups_rejected_stale: 0
+2026-06-18 01:42:57,810 -   setups_rejected_displacement: 0
+2026-06-18 01:42:57,810 -   strategy_rejected_other: 0
+2026-06-18 01:42:57,810 -   setups_created_waiting_for_retrace: 0
+2026-06-18 01:42:57,811 -   setups_expired: 0
+2026-06-18 01:42:57,811 -   setups_cancelled_stale: 0
+2026-06-18 01:42:57,811 -   setups_cancelled_tp1: 0
+2026-06-18 01:42:57,811 -   setups_cancelled_other: 0
+2026-06-18 01:42:57,811 -   entries_triggered: 0
+2026-06-18 01:42:57,811 -   trades_rejected_risk: 0
+2026-06-18 01:42:57,812 -   trades_rejected_ai: 0
+2026-06-18 01:42:57,812 - 
+--- FUNNEL ANALYSIS (OVERALL) ---
+2026-06-18 01:42:57,812 -   Raw BOS: 5 -> Valid BOS: 0 -> Raw FVG: 0 -> Valid FVG: 0 -> Overlap: 3 -> Attempted: 3 -> Waiting: 0 -> Entered: 0
+2026-06-18 01:42:57,812 - ==================================================
+

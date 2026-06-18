@@ -18,12 +18,22 @@ requirements.txt in the TradingProgram repo) and execute:
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, time
 from typing import Optional, List
 
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+
+# Timezone support
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    class ZoneInfo:
+        def __init__(self, key: str) -> None:
+            pass
+        def __repr__(self) -> str:
+            return "UTC"
 
 try:
     # Import local modules from the TradingProgram.  These imports will
@@ -43,7 +53,6 @@ except Exception as exc:
         "directory as the bot code or adjust the import paths.") from exc
 
 
-
 def fetch_and_analyze(symbol: str) -> pd.DataFrame:
     """Fetches recent market data for a symbol and runs the full analysis.
 
@@ -60,7 +69,6 @@ def fetch_and_analyze(symbol: str) -> pd.DataFrame:
     df_5m = feed.compute_atr(df_5m)
     analyzer = MarketAnalyzer(atr_mult_threshold=settings.displacement_atr_threshold)
     return analyzer.analyze(df_5m)
-
 
 
 def generate_trade_candidates(df_analyzed: pd.DataFrame) -> List[dict]:
@@ -183,7 +191,6 @@ def generate_trade_candidates(df_analyzed: pd.DataFrame) -> List[dict]:
     return candidates
 
 
-
 def plot_candles_with_fvg(df: pd.DataFrame) -> go.Figure:
     """Produces a candlestick chart with shaded FVG zones.
 
@@ -233,8 +240,7 @@ def plot_candles_with_fvg(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-
-def load_recent_trades(limit: int = 50) -> pd.DataFrame:
+def load_recent_trades(limit: int = 50, tz: ZoneInfo | None = None) -> pd.DataFrame:
     """Loads recent trades from the SQLite database.
 
     Returns a DataFrame sorted by descending timestamp.  If the DB is
@@ -246,9 +252,19 @@ def load_recent_trades(limit: int = 50) -> pd.DataFrame:
         return pd.DataFrame()
     rows = []
     for trade in results:
+        ts = trade.timestamp
+        # Localise the timestamp if a timezone is provided.  If the stored
+        # timestamp is naive (no tzinfo), assume it is in UTC before converting.
+        if tz is not None and hasattr(ts, 'astimezone'):
+            try:
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=ZoneInfo('UTC'))
+                ts = ts.astimezone(tz)
+            except Exception:
+                pass
         rows.append({
             'id': trade.id,
-            'timestamp': trade.timestamp,
+            'timestamp': ts,
             'symbol': trade.symbol,
             'direction': trade.direction,
             'entry': trade.entry,
@@ -265,27 +281,89 @@ def load_recent_trades(limit: int = 50) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-
 def main() -> None:
     st.set_page_config(page_title="Trading Bot Dashboard", layout="wide")
-    st.title("🧠📈 BOS + FVG Trading Bot Dashboard")
+    # A cleaner title without emojis
+    st.title("BOS & FVG Trading Dashboard")
+
+    # Inject dark-theme CSS.  Use a black background and white text for
+    # improved contrast.  The sidebar adopts a slightly lighter dark
+    # shade to separate it from the main content area.  Reduce the top
+    # padding so content sits higher on the page.
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #000000;
+            color: #ffffff;
+        }
+        .sidebar .sidebar-content {
+            background-color: #0f0f0f;
+            color: #ffffff;
+        }
+        .block-container {
+            padding-top: 1rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
     st.markdown(
         "This dashboard helps you interact with the autonomous paper trading system.\n"
-        "Select a symbol to run a quick strategy scan, inspect detected setups,\n"
+        "Select an ETF or stock to run a quick strategy scan, inspect detected setups,\n"
         "and review recent trades logged in the SQLite database."
     )
+    # Determine local timezone from settings if available, else default to Eastern.
+    tz_name = getattr(settings, 'timezone', None) or 'America/Toronto'
+    try:
+        local_tz = ZoneInfo(tz_name)
+    except Exception:
+        local_tz = ZoneInfo('America/Toronto')
+
+    # Notify when outside regular trading hours (09:30–16:00 local time).  This
+    # clarifies that live data and order execution may not occur until the next
+    # session.
+    now_local = datetime.now(local_tz)
+    market_open = time(9, 30)
+    market_close = time(16, 0)
+    if now_local.time() < market_open or now_local.time() > market_close:
+        st.info("You are viewing this dashboard outside of regular trading hours. "
+                "Live data and trade execution may be limited until markets reopen.")
+
     # Sidebar for symbol selection and analysis
     with st.sidebar:
         st.header("Analysis Controls")
-        symbol = st.selectbox("Select Symbol", options=settings.symbols)
-        if st.button("Run Analysis Now"):
+        # Initialise a modifiable list of tracked symbols
+        if 'custom_symbols' not in st.session_state:
+            st.session_state['custom_symbols'] = list(settings.symbols)
+        # UI for managing the symbol list
+        st.subheader("Manage ETF/Stocks")
+        # Use a dedicated key for the new asset input to avoid conflicts with older
+        # versions of the script.  Do not modify this session_state key after
+        # creation.
+        new_sym = st.text_input("Add ETF/stock", value="", key="new_asset_input")
+        if st.button("Add ETF/stock", key="add_btn"):
+            sym = new_sym.strip().upper()
+            if sym and sym not in st.session_state['custom_symbols']:
+                st.session_state['custom_symbols'].append(sym)
+            # Do not attempt to reset the text input here; modifying the key's
+            # session_state after the widget has been created leads to a
+            # StreamlitAPIException.
+        remove_syms = st.multiselect("Remove ETF/stocks", options=st.session_state['custom_symbols'], key="remove_syms")
+        if st.button("Remove Selected", key="remove_btn") and remove_syms:
+            st.session_state['custom_symbols'] = [s for s in st.session_state['custom_symbols'] if s not in remove_syms]
+        symbol = st.selectbox("Select ETF/stock", options=st.session_state['custom_symbols'], key="symbol_select")
+        # Automatically run the analysis when the selected symbol changes or no analysis has been run yet.
+        previous_selection = st.session_state.get('selected_symbol')
+        if previous_selection != symbol or 'analysis_df' not in st.session_state:
             with st.spinner(f"Fetching and analysing data for {symbol}…"):
                 df_analyzed = fetch_and_analyze(symbol)
+            # If no data is returned, show an error once; otherwise cache the results
             if df_analyzed.empty:
                 st.error("No data returned for this symbol. Check your internet connection and symbol validity.")
-            else:
-                st.session_state['analysis_df'] = df_analyzed
-                st.session_state['candidates'] = generate_trade_candidates(df_analyzed)
+            st.session_state['analysis_df'] = df_analyzed
+            st.session_state['candidates'] = generate_trade_candidates(df_analyzed) if not df_analyzed.empty else []
+            st.session_state['selected_symbol'] = symbol
     # Display analysis output if available
     if 'analysis_df' in st.session_state:
         df_analyzed: pd.DataFrame = st.session_state['analysis_df']
@@ -335,22 +413,24 @@ def main() -> None:
         else:
             st.info("No valid BOS + FVG pairings found in the last few candles.")
     else:
-        st.info("Use the sidebar to run an analysis on a symbol.")
-    # Show recent trades table
-    st.subheader("📜 Recent Trades Log")
-    trades_df = load_recent_trades(limit=50)
+        st.info("Use the sidebar to run an analysis on an ETF or stock.")
+    # Show recent trades table with timestamps localised
+    st.subheader("Recent Trades Log")
+    trades_df = load_recent_trades(limit=50, tz=local_tz)
     if trades_df.empty:
         st.write("No trades have been logged yet.")
     else:
-        st.dataframe(trades_df, use_container_width=True)
+        # Rename the symbol column to reflect ETF or stock
+        display_df = trades_df.rename(columns={'symbol': 'ETF/Stock'})
+        st.dataframe(display_df, use_container_width=True)
+    st.caption(f"All timestamps are shown in {local_tz} time")
 
 
 if __name__ == '__main__':
-    # Run inside asyncio event loop if necessary.  Streamlit will manage
-    # its own loop, but including an event loop runner here keeps type
-    # checkers happy and allows for future async expansion.
-    try:
-        asyncio.run(main())
-    except RuntimeError:
-        # If an event loop is already running (as Streamlit does), just call main directly.
-        main()
+    """
+    Entry point for the Streamlit app.  We call main() directly because
+    the function is synchronous and Streamlit manages its own asyncio
+    event loop internally.  Wrapping main() in asyncio.run() can cause
+    a ValueError on some platforms (e.g. Windows).
+    """
+    main()
