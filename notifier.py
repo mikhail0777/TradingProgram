@@ -15,7 +15,7 @@ def send_notification(payload: TradeSetupPayload, ai_review: AIReviewResult | No
         message += f"\n✅ **APPROVED BY STRATEGY**"
         message += f"\n- Entry: {payload.entry} (Zone: {payload.entry_zone})"
         message += f"\n- Stop: {payload.stop} (Dist: {round(payload.stop_distance, 2)})"
-        message += f"\n- Target 1: {payload.tp1} (RR: {payload.rr})"
+        message += f"\n- Target 1: {payload.tp1} (RR: {payload.rr_to_tp1})"
         message += f"\n- Target 2: {payload.tp2}"
         message += f"\n- Management: BE={payload.be_enabled}, Trail={payload.trail_enabled}"
         message += f"\n- Context: BOS {payload.bos_direction}, HTF {payload.htf_trend}"

@@ -14929,3 +14929,4 @@
 2026-06-18 14:00:11,924 - [AAPL] REJECTED (STRATEGY): Rejected: Weak relative volume (0.49x average).
 2026-06-18 14:01:15,706 - [AAPL] REJECTED (STRATEGY): Rejected: Weak relative volume (0.49x average).
 2026-06-18 15:11:30,130 - [WAITING_FOR_RETRACE] SPY SHORT | Mode: FVG_MIDPOINT | FVG: 746.07 to 746.30 | Entry Limit: 746.18 (Buffer: 0.024) | Stop: 748.13 | TP1: 742.29 | TP2: 742.29 | Detected: 19:11:30 UTC
+2026-06-18 15:26:23,656 - [WAITING_FOR_RETRACE] SPY SHORT | Mode: FVG_MIDPOINT | FVG: 746.07 to 746.30 | Entry Limit: 746.18 (Buffer: 0.024) | Stop: 746.97 | TP1: 744.62 | TP2: 744.62 | Detected: 19:26:23 UTC
