@@ -48,6 +48,10 @@ class TradeSetupPayload(BaseModel):
         return float(round(float(reward) / float(risk), 2))
         
     @property
+    def rr(self) -> float:
+        return self.rr_to_tp1
+        
+    @property
     def rr_to_tp2(self) -> float:
         risk = self.entry - self.stop if self.direction == "LONG" else self.stop - self.entry
         reward = self.tp2 - self.entry if self.direction == "LONG" else self.entry - self.tp2
