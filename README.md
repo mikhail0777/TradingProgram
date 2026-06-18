@@ -57,6 +57,9 @@ The SQLite logging system (`paper_trades.db`) was designed to build a labeled fi
 
 ---
 
+<img width="2539" height="1265" alt="image" src="https://github.com/user-attachments/assets/033d7546-8510-49cd-870e-0beea04e017d" />
+
+
 <details>
 <summary><b>⚙️ Local Installation & Running Guide</b></summary>
 
