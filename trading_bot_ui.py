@@ -293,10 +293,150 @@ def load_recent_trades(limit: int = 50, tz: ZoneInfo | None = None) -> pd.DataFr
         logging.getLogger(__name__).warning(f"Database query failed: {e}. Running UI in standalone demo mode.")
         return pd.DataFrame()
 
+def seed_mock_trades() -> None:
+    """Seeds the database with a few realistic mock trades for portfolio presentation."""
+    try:
+        with next(get_db()) as db:
+            # Check if database already has trades
+            if db.query(DBTrade).count() > 0:
+                return
+            
+            from datetime import datetime, timedelta, timezone
+            now = datetime.now(timezone.utc)
+            
+            mock_trades = [
+                DBTrade(
+                    timestamp=now - timedelta(hours=2),
+                    symbol="NVDA",
+                    timeframe="5m",
+                    direction="LONG",
+                    entry=127.50,
+                    stop=125.80,
+                    tp1=130.90,
+                    tp2=134.30,
+                    rr_to_tp1=2.0,
+                    rr_to_tp2=4.0,
+                    stop_distance=1.70,
+                    bos_direction="BULLISH",
+                    htf_trend="BULLISH",
+                    fvg_top=128.00,
+                    fvg_bottom=127.00,
+                    entry_zone="FVG_MIDPOINT",
+                    volume_ratio=1.45,
+                    chop_flag="FALSE",
+                    ai_action="TAKE",
+                    ai_grade="A",
+                    status="TP2_HIT",
+                    reason="AI Reasons: Strong upward momentum, FVG aligned with daily trend support.",
+                    detected_at=now - timedelta(hours=2, minutes=15),
+                    entered_at=now - timedelta(hours=2),
+                    closed_at=now - timedelta(hours=1),
+                    units=150,
+                    tp2_rr=4.0,
+                    stop_buffer=0.5
+                ),
+                DBTrade(
+                    timestamp=now - timedelta(hours=5),
+                    symbol="AAPL",
+                    timeframe="5m",
+                    direction="SHORT",
+                    entry=214.20,
+                    stop=215.50,
+                    tp1=211.60,
+                    tp2=209.00,
+                    rr_to_tp1=2.0,
+                    rr_to_tp2=4.0,
+                    stop_distance=1.30,
+                    bos_direction="BEARISH",
+                    htf_trend="BEARISH",
+                    fvg_top=214.80,
+                    fvg_bottom=213.60,
+                    entry_zone="FVG_MIDPOINT",
+                    volume_ratio=1.12,
+                    chop_flag="FALSE",
+                    ai_action="TAKE",
+                    ai_grade="B",
+                    status="STOPPED",
+                    reason="AI Reasons: Weak hourly support broken, but index correlation is high.",
+                    detected_at=now - timedelta(hours=5, minutes=10),
+                    entered_at=now - timedelta(hours=5),
+                    closed_at=now - timedelta(hours=4, minutes=20),
+                    units=200,
+                    tp2_rr=4.0,
+                    stop_buffer=0.5
+                ),
+                DBTrade(
+                    timestamp=now - timedelta(hours=24),
+                    symbol="TSLA",
+                    timeframe="5m",
+                    direction="LONG",
+                    entry=178.60,
+                    stop=176.20,
+                    tp1=183.40,
+                    tp2=188.20,
+                    rr_to_tp1=2.0,
+                    rr_to_tp2=4.0,
+                    stop_distance=2.40,
+                    bos_direction="BULLISH",
+                    htf_trend="NEUTRAL",
+                    fvg_top=179.00,
+                    fvg_bottom=178.00,
+                    entry_zone="FVG_TOP",
+                    volume_ratio=1.85,
+                    chop_flag="FALSE",
+                    ai_action="TAKE",
+                    ai_grade="A",
+                    status="BREAKEVEN_EXIT",
+                    reason="AI Reasons: Pre-market sweep of lows, solid R:R setup.",
+                    detected_at=now - timedelta(hours=24, minutes=8),
+                    entered_at=now - timedelta(hours=24),
+                    closed_at=now - timedelta(hours=23, minutes=10),
+                    units=100,
+                    tp2_rr=4.0,
+                    stop_buffer=0.5
+                ),
+                DBTrade(
+                    timestamp=now - timedelta(minutes=45),
+                    symbol="QQQ",
+                    timeframe="5m",
+                    direction="LONG",
+                    entry=452.10,
+                    stop=450.40,
+                    tp1=455.50,
+                    tp2=458.90,
+                    rr_to_tp1=2.0,
+                    rr_to_tp2=4.0,
+                    stop_distance=1.70,
+                    bos_direction="BULLISH",
+                    htf_trend="BULLISH",
+                    fvg_top=452.50,
+                    fvg_bottom=451.70,
+                    entry_zone="FVG_MIDPOINT",
+                    volume_ratio=1.30,
+                    chop_flag="FALSE",
+                    ai_action="TAKE",
+                    ai_grade="A",
+                    status="ENTERED",
+                    reason="AI Reasons: Tech sector buying pressure, strong FVG displacement.",
+                    detected_at=now - timedelta(minutes=50),
+                    entered_at=now - timedelta(minutes=45),
+                    units=80,
+                    tp2_rr=4.0,
+                    stop_buffer=0.5
+                )
+            ]
+            for trade in mock_trades:
+                db.add(trade)
+            db.commit()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to seed mock trades: {e}")
+
 
 def main() -> None:
     try:
         init_db()
+        seed_mock_trades()
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning(f"Database initialization failed: {e}. Running UI in standalone demo mode.")
